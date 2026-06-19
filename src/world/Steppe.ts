@@ -23,7 +23,7 @@ export class Steppe {
       }
     }
     geo.computeVertexNormals();
-    const ground = new THREE.Mesh(geo, lmat(0x6b8f3e));
+    const ground = new THREE.Mesh(geo, lmat(0x6b8f3e, { roughness: 1.0, metalness: 0 }));
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     scene.add(ground);

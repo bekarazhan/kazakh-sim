@@ -9,8 +9,8 @@ import { Instruments } from './items/Instruments';
 import { Kitchen }     from './items/Kitchen';
 
 export class World {
-  constructor(scene: THREE.Scene) {
-    new Sky(scene);
+  constructor(scene: THREE.Scene, renderer: THREE.WebGLRenderer) {
+    new Sky(scene, renderer);
     new Steppe(scene);
     new Yurt(scene);
     new Shyrdak(scene);

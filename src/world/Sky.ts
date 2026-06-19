@@ -1,31 +1,31 @@
 import * as THREE from 'three';
-import { skyTexture } from '../utils/TextureFactory';
+import { Sky as ThreeSky } from 'three/examples/jsm/objects/Sky.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
 export class Sky {
-  constructor(scene: THREE.Scene) {
-    // Gradient sky sphere
-    scene.add(new THREE.Mesh(
-      new THREE.SphereGeometry(250, 32, 16),
-      new THREE.MeshBasicMaterial({ map: skyTexture(), side: THREE.BackSide })
-    ));
+  constructor(scene: THREE.Scene, renderer: THREE.WebGLRenderer) {
+    const sky = new ThreeSky();
+    sky.scale.setScalar(450);
+    scene.add(sky);
 
-    // Sun — high in the sky (summer noon)
-    const sunPos = new THREE.Vector3(40, 80, -120);
-    const sunDisc = new THREE.Mesh(
-      new THREE.CircleGeometry(4.5, 32),
-      new THREE.MeshBasicMaterial({ color: 0xfffde7 })
-    );
-    sunDisc.position.copy(sunPos);
-    sunDisc.lookAt(0, 0, 0);
-    scene.add(sunDisc);
+    const sun = new THREE.Vector3();
+    const uniforms = sky.material.uniforms;
+    uniforms['turbidity'].value    = 3.5;    // atmospheric haze
+    uniforms['rayleigh'].value     = 1.2;    // sky blue scattering
+    uniforms['mieCoefficient'].value   = 0.004;
+    uniforms['mieDirectionalG'].value  = 0.92;
 
-    // Soft corona
-    const corona = new THREE.Mesh(
-      new THREE.CircleGeometry(8, 32),
-      new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.12 })
-    );
-    corona.position.copy(sunPos);
-    corona.lookAt(0, 0, 0);
-    scene.add(corona);
+    // Summer noon sun — high elevation
+    const phi   = THREE.MathUtils.degToRad(90 - 68); // 68° above horizon
+    const theta = THREE.MathUtils.degToRad(195);
+    sun.setFromSphericalCoords(1, phi, theta);
+    uniforms['sunPosition'].value.copy(sun);
+
+    // Update environment map so PBR materials catch the sky colour
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    pmrem.compileEquirectangularShader();
+    const envMap = pmrem.fromScene(new RoomEnvironment()).texture;
+    scene.environment = envMap;
+    pmrem.dispose();
   }
 }

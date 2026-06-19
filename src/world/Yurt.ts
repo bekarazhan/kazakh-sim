@@ -27,19 +27,19 @@ export class Yurt {
   }
 
   private addWalls(scene: THREE.Scene) {
-    // Felt cylinder
+    // Felt cylinder — rough wool texture
     const wall = new THREE.Mesh(
       new THREE.CylinderGeometry(YURT_R, YURT_R, WALL_H, 64, 1, true),
-      lmat(0xb06030, { side: THREE.DoubleSide })
+      lmat(0xb06030, { side: THREE.DoubleSide, roughness: 0.95, metalness: 0 })
     );
     wall.position.y = WALL_H / 2;
     wall.castShadow = true; wall.receiveShadow = true;
     scene.add(wall);
 
-    // Gold decorative bands
+    // Gold decorative bands — slight sheen
     const bandGeo = new THREE.CylinderGeometry(YURT_R + 0.01, YURT_R + 0.01, 0.18, 64, 1, true);
     [0.3, WALL_H - 0.2].forEach(y => {
-      const b = new THREE.Mesh(bandGeo, lmat(0xd4a020, { side: THREE.DoubleSide }));
+      const b = new THREE.Mesh(bandGeo, lmat(0xd4a020, { side: THREE.DoubleSide, roughness: 0.5, metalness: 0.3 }));
       b.position.y = y;
       scene.add(b);
     });
@@ -65,7 +65,7 @@ export class Yurt {
     }
     const dome = new THREE.Mesh(
       new THREE.LatheGeometry(profile, 64),
-      lmat(0xa85828, { side: THREE.DoubleSide })
+      lmat(0xa85828, { side: THREE.DoubleSide, roughness: 0.9, metalness: 0 })
     );
     dome.position.y = WALL_H;
     dome.castShadow = true; dome.receiveShadow = true;
