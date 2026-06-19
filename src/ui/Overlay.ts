@@ -28,6 +28,12 @@ export class Overlay {
     this.crosshair = document.getElementById('crosshair')!;
     this.fade      = document.getElementById('fade')!;
 
+    // Clicking the overlay requests pointer lock on the canvas
+    this.overlay.addEventListener('click', () => {
+      const canvas = document.querySelector('canvas');
+      canvas?.requestPointerLock();
+    });
+
     // 3. Wire events
     bus.on('lockchange', (locked: unknown) => {
       this.overlay.style.display   = locked ? 'none' : 'flex';
