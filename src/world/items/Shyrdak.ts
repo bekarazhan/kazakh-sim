@@ -8,7 +8,7 @@ export class Shyrdak {
       new THREE.MeshLambertMaterial({ map: shyrdakTexture() })
     );
     mesh.rotation.x = -Math.PI / 2;
-    mesh.position.y = 0.006;
+    mesh.position.y = 0.012;
     mesh.receiveShadow = true;
     scene.add(mesh);
   }

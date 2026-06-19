@@ -21,6 +21,7 @@ export class Yurt {
       lmat(0x7a5228)
     );
     floor.rotation.x = -Math.PI / 2;
+    floor.position.y = 0.001;
     floor.receiveShadow = true;
     scene.add(floor);
   }
