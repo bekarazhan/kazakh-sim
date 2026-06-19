@@ -17,6 +17,7 @@ export class FirstPersonControls {
   private locked = false;
   private awake = false;
   private wakeTimer = 0;
+  private outsideYurt = false;
 
   constructor(camera: THREE.Camera, canvas: HTMLElement) {
     this.camera = camera;
@@ -39,28 +40,36 @@ export class FirstPersonControls {
     canvas.addEventListener('click', () => canvas.requestPointerLock());
   }
 
-  /** Push player back inside yurt walls, leaving door gap open on +Z side. */
+  /** Collision with yurt wall. Door on +Z side (x ≈ 0) is the only passage. */
   private collide(pos: THREE.Vector3) {
-    const limit = YURT_R - WALL_MARGIN;
     const d = Math.hypot(pos.x, pos.z);
+    const inDoorway = pos.z > 0 && Math.abs(pos.x) < DOOR_HALF_WIDTH;
 
-    // Wall collision only applies while still inside the yurt perimeter.
-    // Once the player is outside (d > YURT_R) they can roam freely.
-    if (d > limit && d <= YURT_R) {
-      const inDoorway = pos.z > 0 && Math.abs(pos.x) < DOOR_HALF_WIDTH;
-      if (!inDoorway) {
-        const a = Math.atan2(pos.z, pos.x);
-        pos.x = Math.cos(a) * limit;
-        pos.z = Math.sin(a) * limit;
+    if (!inDoorway) {
+      const innerLimit = YURT_R - WALL_MARGIN;
+      const outerLimit = YURT_R + WALL_MARGIN;
+      const a = Math.atan2(pos.z, pos.x);
+
+      if (!this.outsideYurt && d > innerLimit) {
+        // Inside → trying to cross wall outward → push back inside
+        pos.x = Math.cos(a) * innerLimit;
+        pos.z = Math.sin(a) * innerLimit;
+      } else if (this.outsideYurt && d < outerLimit) {
+        // Outside → trying to cross wall inward → push back outside
+        pos.x = Math.cos(a) * outerLimit;
+        pos.z = Math.sin(a) * outerLimit;
       }
     }
 
-    // Hard outer limit so player can't wander too far into steppe
-    const outerLimit = YURT_R + 8;
-    if (d > outerLimit) {
+    // Update inside/outside state only when passing through door
+    if (inDoorway) this.outsideYurt = d > YURT_R;
+
+    // Hard steppe boundary
+    const steppeLimit = YURT_R + 8;
+    if (d > steppeLimit) {
       const a = Math.atan2(pos.z, pos.x);
-      pos.x = Math.cos(a) * outerLimit;
-      pos.z = Math.sin(a) * outerLimit;
+      pos.x = Math.cos(a) * steppeLimit;
+      pos.z = Math.sin(a) * steppeLimit;
     }
   }
 
