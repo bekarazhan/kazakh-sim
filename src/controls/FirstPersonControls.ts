@@ -4,7 +4,10 @@ import { bus } from '../core/EventBus';
 const EYE_H = 1.65;
 const MOVE_SPEED = 0.048;
 const WAKE_DURATION = 3.8;
-const YURT_MAX_DIST = 8.5; // allow stepping just outside door
+const YURT_R = 5.2;
+const WALL_MARGIN = 0.35;        // how close to wall before bouncing
+const DOOR_HALF_WIDTH = 0.58;    // door opening half-width (DW=1.05 / 2 + margin)
+const DOOR_Z = YURT_R - 0.1;    // door is on +Z side
 
 export class FirstPersonControls {
   private camera: THREE.Camera;
@@ -34,6 +37,28 @@ export class FirstPersonControls {
     });
 
     canvas.addEventListener('click', () => canvas.requestPointerLock());
+  }
+
+  /** Push player back inside yurt walls, leaving door gap open on +Z side. */
+  private collide(pos: THREE.Vector3) {
+    const limit = YURT_R - WALL_MARGIN;
+    const d = Math.hypot(pos.x, pos.z);
+    if (d > limit) {
+      // Allow exit through door: centered at x≈0, z>0
+      const inDoorway = pos.z > DOOR_Z - 1.0 && Math.abs(pos.x) < DOOR_HALF_WIDTH;
+      if (!inDoorway) {
+        const a = Math.atan2(pos.z, pos.x);
+        pos.x = Math.cos(a) * limit;
+        pos.z = Math.sin(a) * limit;
+      }
+    }
+    // Hard outer limit so player can't wander too far outside
+    const outerLimit = YURT_R + 6;
+    if (d > outerLimit) {
+      const a = Math.atan2(pos.z, pos.x);
+      pos.x = Math.cos(a) * outerLimit;
+      pos.z = Math.sin(a) * outerLimit;
+    }
   }
 
   get isLocked() { return this.locked; }
@@ -66,12 +91,7 @@ export class FirstPersonControls {
       if (this.keys['KeyA'] || this.keys['ArrowLeft'])  cam.position.addScaledVector(rgt, -MOVE_SPEED);
       if (this.keys['KeyD'] || this.keys['ArrowRight']) cam.position.addScaledVector(rgt,  MOVE_SPEED);
 
-      const d = Math.hypot(cam.position.x, cam.position.z);
-      if (d > YURT_MAX_DIST) {
-        const a = Math.atan2(cam.position.z, cam.position.x);
-        cam.position.x = Math.cos(a) * YURT_MAX_DIST;
-        cam.position.z = Math.sin(a) * YURT_MAX_DIST;
-      }
+      this.collide(cam.position);
       cam.position.y = EYE_H;
     }
 
