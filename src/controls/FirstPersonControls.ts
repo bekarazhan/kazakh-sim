@@ -43,17 +43,20 @@ export class FirstPersonControls {
   private collide(pos: THREE.Vector3) {
     const limit = YURT_R - WALL_MARGIN;
     const d = Math.hypot(pos.x, pos.z);
-    if (d > limit) {
-      // Allow exit through door: centered at x≈0, z>0
-      const inDoorway = pos.z > DOOR_Z - 1.0 && Math.abs(pos.x) < DOOR_HALF_WIDTH;
+
+    // Wall collision only applies while still inside the yurt perimeter.
+    // Once the player is outside (d > YURT_R) they can roam freely.
+    if (d > limit && d <= YURT_R) {
+      const inDoorway = pos.z > 0 && Math.abs(pos.x) < DOOR_HALF_WIDTH;
       if (!inDoorway) {
         const a = Math.atan2(pos.z, pos.x);
         pos.x = Math.cos(a) * limit;
         pos.z = Math.sin(a) * limit;
       }
     }
-    // Hard outer limit so player can't wander too far outside
-    const outerLimit = YURT_R + 6;
+
+    // Hard outer limit so player can't wander too far into steppe
+    const outerLimit = YURT_R + 8;
     if (d > outerLimit) {
       const a = Math.atan2(pos.z, pos.x);
       pos.x = Math.cos(a) * outerLimit;
