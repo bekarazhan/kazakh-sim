@@ -1,0 +1,56 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body { overflow: hidden; background: #1a0800; }
+
+canvas { display: block; }
+
+#overlay {
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, 0.88);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  color: #e8c86e;
+  z-index: 10;
+  cursor: pointer;
+  font-family: Georgia, 'Times New Roman', serif;
+  transition: opacity 1s;
+}
+
+#overlay .era   { font-size: 13px; letter-spacing: 6px; opacity: 0.4; margin-bottom: 20px; }
+#overlay h1     { font-size: 64px; letter-spacing: 10px; margin-bottom: 6px; text-shadow: 0 0 40px #c8841a; }
+#overlay h2     { font-size: 22px; letter-spacing: 8px; opacity: 0.55; margin-bottom: 70px; font-weight: normal; }
+#overlay .hint  { font-size: 14px; opacity: 0.35; letter-spacing: 3px; }
+#overlay .hint span { display: inline-block; animation: pulse 2s ease-in-out infinite; }
+
+@keyframes pulse { 0%, 100% { opacity: 0.35 } 50% { opacity: 0.7 } }
+
+#hud {
+  position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+  color: rgba(255, 220, 130, 0.45);
+  font-size: 12px; letter-spacing: 2px;
+  font-family: Georgia, serif;
+  display: none; pointer-events: none;
+  white-space: nowrap;
+}
+
+#crosshair {
+  position: fixed; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 4px; height: 4px;
+  background: rgba(255, 240, 200, 0.5);
+  border-radius: 50%;
+  display: none; pointer-events: none;
+}
+
+#vignette {
+  position: fixed; inset: 0;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.7) 100%);
+  pointer-events: none; z-index: 1;
+}
+
+#fade {
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, 1);
+  pointer-events: none; z-index: 5;
+  transition: opacity 3s ease;
+}
