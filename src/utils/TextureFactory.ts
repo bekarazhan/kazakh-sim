@@ -5,12 +5,12 @@ export function skyTexture(): THREE.CanvasTexture {
   cvs.width = 2; cvs.height = 512;
   const ctx = cvs.getContext('2d')!;
   const g = ctx.createLinearGradient(0, 0, 0, 512);
-  g.addColorStop(0.00, '#050b1e');
-  g.addColorStop(0.25, '#0a1540');
-  g.addColorStop(0.50, '#6b1a08');
-  g.addColorStop(0.72, '#d44010');
-  g.addColorStop(0.88, '#ff7820');
-  g.addColorStop(1.00, '#ffa040');
+  // Clear summer day — deep blue zenith → pale blue horizon
+  g.addColorStop(0.00, '#1565c0');
+  g.addColorStop(0.30, '#1e88e5');
+  g.addColorStop(0.65, '#64b5f6');
+  g.addColorStop(0.85, '#b3d9f7');
+  g.addColorStop(1.00, '#d6eefa');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, 2, 512);
   return new THREE.CanvasTexture(cvs);

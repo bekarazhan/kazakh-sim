@@ -9,23 +9,23 @@ export class Sky {
       new THREE.MeshBasicMaterial({ map: skyTexture(), side: THREE.BackSide })
     ));
 
-    // Sun disc
-    const sunPos = new THREE.Vector3(-65, 18, -110);
+    // Sun — high in the sky (summer noon)
+    const sunPos = new THREE.Vector3(40, 80, -120);
     const sunDisc = new THREE.Mesh(
-      new THREE.CircleGeometry(5.5, 32),
-      new THREE.MeshBasicMaterial({ color: 0xffe080 })
+      new THREE.CircleGeometry(4.5, 32),
+      new THREE.MeshBasicMaterial({ color: 0xfffde7 })
     );
     sunDisc.position.copy(sunPos);
-    sunDisc.lookAt(0, 10, 0);
+    sunDisc.lookAt(0, 0, 0);
     scene.add(sunDisc);
 
-    // Glow halo
-    const glow = new THREE.Mesh(
-      new THREE.CircleGeometry(11, 32),
-      new THREE.MeshBasicMaterial({ color: 0xff5500, transparent: true, opacity: 0.22 })
+    // Soft corona
+    const corona = new THREE.Mesh(
+      new THREE.CircleGeometry(8, 32),
+      new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.12 })
     );
-    glow.position.copy(sunPos);
-    glow.lookAt(0, 10, 0);
-    scene.add(glow);
+    corona.position.copy(sunPos);
+    corona.lookAt(0, 0, 0);
+    scene.add(corona);
   }
 }
