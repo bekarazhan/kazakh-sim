@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { bus } from '../core/EventBus';
 
-const EYE_H = 1.65 + 0.15;       // Raised to match yurt floor level (0.15)
+const EYE_H = 1.65 + 0.15;       // Standing eye height (1.80m)
+const CROUCH_H = 0.85 + 0.15;     // Crouching eye height (1.00m)
+const PRONE_H = 0.30 + 0.15;      // Prone/Lying eye height (0.45m)
 const WAKE_START_H = 0.28 + 0.15; // Waking up head height above floor
 const MOVE_SPEED = 0.048;
 const WAKE_DURATION = 3.8;
@@ -19,18 +21,32 @@ export class FirstPersonControls {
   private awake = false;
   private wakeTimer = 0;
   private outsideYurt = false;
+  private stance: 'standing' | 'crouching' | 'prone' = 'standing';
 
   constructor(camera: THREE.Camera, canvas: HTMLElement) {
     this.camera = camera;
 
-    document.addEventListener('keydown', e => { this.keys[e.code] = true; });
-    document.addEventListener('keyup',   e => { this.keys[e.code] = false; });
+    document.addEventListener('keydown', e => { 
+      this.keys[e.code] = true; 
+      if (!this.locked || !this.awake) return;
+      if (e.code === 'KeyC') {
+        this.toggleCrouch();
+      } else if (e.code === 'KeyX') {
+        this.toggleProne();
+      }
+    });
+
+    document.addEventListener('keyup', e => { 
+      this.keys[e.code] = false; 
+    });
 
     document.addEventListener('mousemove', e => {
       if (!this.locked) return;
       this.yaw   -= e.movementX * 0.0018;
       this.pitch -= e.movementY * 0.0018;
-      this.pitch  = Math.max(-Math.PI * 0.45, Math.min(Math.PI * 0.38, this.pitch));
+      // Allow looking almost straight up (86 degrees) when prone/lying down to see the shanyrak
+      const maxPitch = (this.stance === 'prone') ? Math.PI * 0.48 : Math.PI * 0.42;
+      this.pitch  = Math.max(-Math.PI * 0.45, Math.min(maxPitch, this.pitch));
     });
 
     document.addEventListener('pointerlockchange', () => {
@@ -39,6 +55,22 @@ export class FirstPersonControls {
     });
 
     canvas.addEventListener('click', () => canvas.requestPointerLock());
+  }
+
+  private toggleCrouch() {
+    if (this.stance === 'crouching') {
+      this.stance = 'standing';
+    } else {
+      this.stance = 'crouching';
+    }
+  }
+
+  private toggleProne() {
+    if (this.stance === 'prone') {
+      this.stance = 'standing';
+    } else {
+      this.stance = 'prone';
+    }
   }
 
   /** Collision with yurt wall. Door on +Z side (x ≈ 0) is the only passage. */
@@ -100,13 +132,29 @@ export class FirstPersonControls {
       const fwd = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
       const rgt = new THREE.Vector3( Math.cos(this.yaw), 0, -Math.sin(this.yaw));
 
-      if (this.keys['KeyW'] || this.keys['ArrowUp'])    cam.position.addScaledVector(fwd,  MOVE_SPEED);
-      if (this.keys['KeyS'] || this.keys['ArrowDown'])  cam.position.addScaledVector(fwd, -MOVE_SPEED);
-      if (this.keys['KeyA'] || this.keys['ArrowLeft'])  cam.position.addScaledVector(rgt, -MOVE_SPEED);
-      if (this.keys['KeyD'] || this.keys['ArrowRight']) cam.position.addScaledVector(rgt,  MOVE_SPEED);
+      let targetH = EYE_H;
+      let speedMult = 1.0;
+      if (this.stance === 'crouching') {
+        targetH = CROUCH_H;
+        speedMult = 0.5;
+      } else if (this.stance === 'prone') {
+        targetH = PRONE_H;
+        speedMult = 0.20; // slow crawl when lying down
+      }
+
+      if (this.keys['KeyW'] || this.keys['ArrowUp'])    cam.position.addScaledVector(fwd,  MOVE_SPEED * speedMult);
+      if (this.keys['KeyS'] || this.keys['ArrowDown'])  cam.position.addScaledVector(fwd, -MOVE_SPEED * speedMult);
+      if (this.keys['KeyA'] || this.keys['ArrowLeft'])  cam.position.addScaledVector(rgt, -MOVE_SPEED * speedMult);
+      if (this.keys['KeyD'] || this.keys['ArrowRight']) cam.position.addScaledVector(rgt,  MOVE_SPEED * speedMult);
 
       this.collide(cam.position);
-      cam.position.y = EYE_H;
+      
+      // Smoothly transition camera height
+      cam.position.y = THREE.MathUtils.lerp(cam.position.y, targetH, dt * 7.0);
+
+      // Clamp pitch in case stance changed
+      const maxPitch = (this.stance === 'prone') ? Math.PI * 0.48 : Math.PI * 0.42;
+      this.pitch = Math.max(-Math.PI * 0.45, Math.min(maxPitch, this.pitch));
     }
 
     const cam = this.camera as THREE.Object3D;

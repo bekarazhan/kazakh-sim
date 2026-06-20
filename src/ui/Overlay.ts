@@ -18,7 +18,7 @@ export class Overlay {
       <div id="vignette"></div>
       <div id="fade"></div>
       <div id="crosshair"></div>
-      <div id="hud">W A S D — движение &nbsp;·&nbsp; мышь — взгляд &nbsp;·&nbsp; ESC — пауза</div>
+      <div id="hud">W A S D — движение &nbsp;·&nbsp; C — присесть &nbsp;·&nbsp; X — лечь &nbsp;·&nbsp; мышь — взгляд &nbsp;·&nbsp; ESC — пауза</div>
     `;
     document.body.insertAdjacentHTML('beforeend', html);
 
