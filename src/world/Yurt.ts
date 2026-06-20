@@ -17,6 +17,9 @@ export class Yurt {
         // Adjust position so the floor sits above the steppe ground (prevent clipping)
         model.position.set(0, 0.15, 0);
 
+        // Rotate model so the door aligns with the +Z direction (physical collision door opening)
+        model.rotation.y = -2.8115;
+
         // Configure shadow maps and materials
         model.traverse((child) => {
           if ((child as THREE.Mesh).isMesh) {
