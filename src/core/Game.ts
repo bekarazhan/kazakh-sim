@@ -29,7 +29,7 @@ export class Game {
 
   constructor() {
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.FogExp2(0xc5dff0, 0.004);
+    this.scene.fog = new THREE.FogExp2(0xc5dff0, 0.0065);
 
     this.camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.05, 400);
     this.camera.position.set(0.4, 0.43, 1.6);
