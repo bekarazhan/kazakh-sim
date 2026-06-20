@@ -13,6 +13,7 @@ export class AudioManager {
   private horseBuffer!: AudioBuffer;
   private sheepBuffer!: AudioBuffer;
   private cowBuffer!: AudioBuffer;
+  private doveBuffer!: AudioBuffer;
 
   private initialized = false;
   private nextAnimalTime = 0;
@@ -100,6 +101,7 @@ export class AudioManager {
     loader.load('/audio/horse.mp3', (buffer) => { this.horseBuffer = buffer; });
     loader.load('/audio/sheep.mp3', (buffer) => { this.sheepBuffer = buffer; });
     loader.load('/audio/cow.mp3', (buffer) => { this.cowBuffer = buffer; });
+    loader.load('/audio/dove.mp3', (buffer) => { this.doveBuffer = buffer; });
 
     // Schedule first animal sound in 10-25 seconds
     this.nextAnimalTime = Date.now() + 10000 + Math.random() * 15000;
@@ -107,11 +109,12 @@ export class AudioManager {
   }
 
   private playAnimalSound() {
-    const buffers = [this.horseBuffer, this.sheepBuffer, this.cowBuffer].filter(Boolean);
+    const buffers = [this.horseBuffer, this.sheepBuffer, this.cowBuffer, this.doveBuffer].filter(Boolean);
     if (buffers.length === 0) return;
 
     // Pick random sound buffer
     const buffer = buffers[Math.floor(Math.random() * buffers.length)];
+    const isDove = (buffer === this.doveBuffer);
 
     // Create positional audio for animal in the distance
     const animalAudio = new THREE.PositionalAudio(this.listener);
@@ -119,19 +122,26 @@ export class AudioManager {
     
     // Muffle animal sounds if player is inside the yurt
     const volumeMultiplier = this.isOutsideFn() ? 1.0 : 0.3;
-    animalAudio.setVolume(0.6 * volumeMultiplier);
+    const baseVolume = isDove ? 0.75 : 0.6;
+    animalAudio.setVolume(baseVolume * volumeMultiplier);
     
-    animalAudio.setRefDistance(10);
-    animalAudio.setMaxDistance(180);
+    if (isDove) {
+      animalAudio.setRefDistance(5);
+      animalAudio.setMaxDistance(100);
+    } else {
+      animalAudio.setRefDistance(10);
+      animalAudio.setMaxDistance(180);
+    }
 
-    // Choose random position on the steppe (outside yurt, radius 15 to 70 meters)
+    // Choose random position on the steppe (outside yurt)
     const angle = Math.random() * Math.PI * 2;
-    const distance = 15 + Math.random() * 55;
+    const distance = isDove ? (5 + Math.random() * 30) : (15 + Math.random() * 55);
     const ax = Math.cos(angle) * distance;
     const az = Math.sin(angle) * distance;
+    const ay = isDove ? (1.5 + Math.random() * 4.0) : 0.5;
 
     const animalMesh = new THREE.Object3D();
-    animalMesh.position.set(ax, 0.5, az);
+    animalMesh.position.set(ax, ay, az);
     animalMesh.add(animalAudio);
     this.scene.add(animalMesh);
 
