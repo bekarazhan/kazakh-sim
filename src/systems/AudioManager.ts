@@ -9,11 +9,11 @@ export class AudioManager {
   private wind!: THREE.Audio;
   private birds!: THREE.Audio;
   private fire!: THREE.PositionalAudio;
+  private yurtDove!: THREE.PositionalAudio;
 
   private horseBuffer!: AudioBuffer;
   private sheepBuffer!: AudioBuffer;
   private cowBuffer!: AudioBuffer;
-  private doveBuffer!: AudioBuffer;
 
   private initialized = false;
   private nextAnimalTime = 0;
@@ -22,6 +22,7 @@ export class AudioManager {
   private currentWindVol = 0.08;
   private currentBirdsVol = 0.03;
   private currentFireVolMultiplier = 1.0;
+  private currentDoveVolMultiplier = 1.0;
 
   constructor(camera: THREE.Camera, scene: THREE.Scene, isOutsideFn: () => boolean) {
     this.camera = camera;
@@ -61,6 +62,7 @@ export class AudioManager {
     this.currentWindVol = isOutside ? 0.30 : 0.08;
     this.currentBirdsVol = isOutside ? 0.22 : 0.03;
     this.currentFireVolMultiplier = isOutside ? 0.3 : 1.0;
+    this.currentDoveVolMultiplier = isOutside ? 1.0 : 0.35;
 
     // 1. Wind ambient loop
     this.wind = new THREE.Audio(this.listener);
@@ -97,24 +99,58 @@ export class AudioManager {
     fireMesh.add(this.fire);
     this.scene.add(fireMesh);
 
-    // 4. Preload animal sound buffers
+    // 4. Yurt roof Dove (Streptopelia decaocto) perched on the dome ring
+    this.yurtDove = new THREE.PositionalAudio(this.listener);
+    loader.load('/audio/dove.mp3', (buffer) => {
+      this.yurtDove.setBuffer(buffer);
+      this.yurtDove.setVolume(0.5 * this.currentDoveVolMultiplier);
+      this.yurtDove.setRefDistance(3.0);
+      this.yurtDove.setMaxDistance(80);
+
+      const yurtDoveMesh = new THREE.Object3D();
+      yurtDoveMesh.position.set(0.2, 3.2, -0.2); // Roof dome ring (shanyrak)
+      yurtDoveMesh.add(this.yurtDove);
+      this.scene.add(yurtDoveMesh);
+
+      // Play first time shortly after loading, then schedule
+      setTimeout(() => {
+        if (this.initialized && this.yurtDove && !this.yurtDove.isPlaying) {
+          this.yurtDove.play();
+        }
+      }, 4000);
+      this.scheduleNextYurtDove();
+    });
+
+    // 5. Preload animal sound buffers
     loader.load('/audio/horse.mp3', (buffer) => { this.horseBuffer = buffer; });
     loader.load('/audio/sheep.mp3', (buffer) => { this.sheepBuffer = buffer; });
     loader.load('/audio/cow.mp3', (buffer) => { this.cowBuffer = buffer; });
-    loader.load('/audio/dove.mp3', (buffer) => { this.doveBuffer = buffer; });
 
     // Schedule first animal sound in 10-25 seconds
     this.nextAnimalTime = Date.now() + 10000 + Math.random() * 15000;
     this.tick();
   }
 
+  private scheduleNextYurtDove() {
+    if (!this.initialized) return;
+
+    // Schedule next call in 20 to 45 seconds
+    const delay = 20000 + Math.random() * 25000;
+    setTimeout(() => {
+      if (this.initialized && this.yurtDove && !this.yurtDove.isPlaying) {
+        this.yurtDove.setVolume(0.5 * this.currentDoveVolMultiplier);
+        this.yurtDove.play();
+      }
+      this.scheduleNextYurtDove();
+    }, delay);
+  }
+
   private playAnimalSound() {
-    const buffers = [this.horseBuffer, this.sheepBuffer, this.cowBuffer, this.doveBuffer].filter(Boolean);
+    const buffers = [this.horseBuffer, this.sheepBuffer, this.cowBuffer].filter(Boolean);
     if (buffers.length === 0) return;
 
     // Pick random sound buffer
     const buffer = buffers[Math.floor(Math.random() * buffers.length)];
-    const isDove = (buffer === this.doveBuffer);
 
     // Create positional audio for animal in the distance
     const animalAudio = new THREE.PositionalAudio(this.listener);
@@ -122,26 +158,19 @@ export class AudioManager {
     
     // Muffle animal sounds if player is inside the yurt
     const volumeMultiplier = this.isOutsideFn() ? 1.0 : 0.3;
-    const baseVolume = isDove ? 0.75 : 0.6;
-    animalAudio.setVolume(baseVolume * volumeMultiplier);
+    animalAudio.setVolume(0.6 * volumeMultiplier);
     
-    if (isDove) {
-      animalAudio.setRefDistance(5);
-      animalAudio.setMaxDistance(100);
-    } else {
-      animalAudio.setRefDistance(10);
-      animalAudio.setMaxDistance(180);
-    }
+    animalAudio.setRefDistance(10);
+    animalAudio.setMaxDistance(180);
 
-    // Choose random position on the steppe (outside yurt)
+    // Choose random position on the steppe (outside yurt, radius 15 to 70 meters)
     const angle = Math.random() * Math.PI * 2;
-    const distance = isDove ? (5 + Math.random() * 30) : (15 + Math.random() * 55);
+    const distance = 15 + Math.random() * 55;
     const ax = Math.cos(angle) * distance;
     const az = Math.sin(angle) * distance;
-    const ay = isDove ? (1.5 + Math.random() * 4.0) : 0.5;
 
     const animalMesh = new THREE.Object3D();
-    animalMesh.position.set(ax, ay, az);
+    animalMesh.position.set(ax, 0.5, az);
     animalMesh.add(animalAudio);
     this.scene.add(animalMesh);
 
@@ -173,6 +202,7 @@ export class AudioManager {
     const targetWindVol = isOutside ? 0.30 : 0.08;
     const targetBirdsVol = isOutside ? 0.22 : 0.03;
     const targetFireMultiplier = isOutside ? 0.3 : 1.0;
+    const targetDoveMultiplier = isOutside ? 1.0 : 0.35;
 
     // Lerp wind volume
     this.currentWindVol = THREE.MathUtils.lerp(this.currentWindVol, targetWindVol, dt * 2.0);
@@ -190,6 +220,12 @@ export class AudioManager {
     this.currentFireVolMultiplier = THREE.MathUtils.lerp(this.currentFireVolMultiplier, targetFireMultiplier, dt * 2.0);
     if (this.fire && this.fire.isPlaying) {
       this.fire.setVolume(0.7 * this.currentFireVolMultiplier);
+    }
+
+    // Lerp dove volume
+    this.currentDoveVolMultiplier = THREE.MathUtils.lerp(this.currentDoveVolMultiplier, targetDoveMultiplier, dt * 2.0);
+    if (this.yurtDove && this.yurtDove.isPlaying) {
+      this.yurtDove.setVolume(0.5 * this.currentDoveVolMultiplier);
     }
   }
 }
