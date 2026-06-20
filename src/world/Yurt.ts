@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { lmat } from '../utils/GeomUtils';
+import { woodTexture, feltTexture, noiseBumpTexture } from '../utils/TextureFactory';
 
 export const YURT_R = 5.2;
 const WALL_H = 2.3;
@@ -16,9 +17,17 @@ export class Yurt {
   }
 
   private addFloor(scene: THREE.Scene) {
+    const floorTex = woodTexture('#7a5228', '#482a0a');
+    floorTex.repeat.set(6, 6);
+    const floorMat = new THREE.MeshStandardMaterial({
+      map: floorTex,
+      roughness: 0.75,
+      metalness: 0.1,
+    });
+
     const floor = new THREE.Mesh(
       new THREE.CircleGeometry(YURT_R - 0.05, 48),
-      lmat(0x7a5228)
+      floorMat
     );
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = 0.001;
@@ -27,27 +36,51 @@ export class Yurt {
   }
 
   private addWalls(scene: THREE.Scene) {
-    // Felt cylinder — rough wool texture
+    // Felt wall material with bump mapping
+    const wallFeltTex = feltTexture('#b06030', '#7b401d');
+    wallFeltTex.repeat.set(12, 4);
+    const wallBumpTex = noiseBumpTexture();
+    wallBumpTex.repeat.set(24, 8);
+
+    const wallMat = new THREE.MeshStandardMaterial({
+      map: wallFeltTex,
+      bumpMap: wallBumpTex,
+      bumpScale: 0.015,
+      roughness: 0.95,
+      metalness: 0.0,
+      side: THREE.DoubleSide
+    });
+
     const wall = new THREE.Mesh(
       new THREE.CylinderGeometry(YURT_R, YURT_R, WALL_H, 64, 1, true),
-      lmat(0xb06030, { side: THREE.DoubleSide, roughness: 0.95, metalness: 0 })
+      wallMat
     );
     wall.position.y = WALL_H / 2;
     wall.castShadow = true; wall.receiveShadow = true;
     scene.add(wall);
 
-    // Gold decorative bands — slight sheen
+    // Gold decorative bands
     const bandGeo = new THREE.CylinderGeometry(YURT_R + 0.01, YURT_R + 0.01, 0.18, 64, 1, true);
     [0.3, WALL_H - 0.2].forEach(y => {
-      const b = new THREE.Mesh(bandGeo, lmat(0xd4a020, { side: THREE.DoubleSide, roughness: 0.5, metalness: 0.3 }));
+      const b = new THREE.Mesh(
+        bandGeo, 
+        lmat(0xd4a020, { side: THREE.DoubleSide, roughness: 0.4, metalness: 0.7 })
+      );
       b.position.y = y;
       scene.add(b);
     });
 
-    // Kerege ring at wall top
+    // Kerege wood ring
+    const woodTex = woodTexture('#7a4822', '#4a2808');
+    const woodMat = new THREE.MeshStandardMaterial({
+      map: woodTex,
+      roughness: 0.8,
+      metalness: 0.05
+    });
+
     const ring = new THREE.Mesh(
       new THREE.TorusGeometry(YURT_R + 0.02, 0.06, 8, 64),
-      lmat(0x7a4822)
+      woodMat
     );
     ring.rotation.x = Math.PI / 2;
     ring.position.y = WALL_H;
@@ -55,6 +88,21 @@ export class Yurt {
   }
 
   private addDome(scene: THREE.Scene) {
+    // Felt dome material
+    const domeFeltTex = feltTexture('#a85828', '#733814');
+    domeFeltTex.repeat.set(12, 6);
+    const domeBumpTex = noiseBumpTexture();
+    domeBumpTex.repeat.set(24, 12);
+
+    const domeMat = new THREE.MeshStandardMaterial({
+      map: domeFeltTex,
+      bumpMap: domeBumpTex,
+      bumpScale: 0.015,
+      roughness: 0.95,
+      metalness: 0.0,
+      side: THREE.DoubleSide
+    });
+
     // LatheGeometry profile: smooth curve from wall top to shanyrak
     const profile: THREE.Vector2[] = [];
     for (let i = 0; i <= 28; i++) {
@@ -65,13 +113,21 @@ export class Yurt {
     }
     const dome = new THREE.Mesh(
       new THREE.LatheGeometry(profile, 64),
-      lmat(0xa85828, { side: THREE.DoubleSide, roughness: 0.9, metalness: 0 })
+      domeMat
     );
     dome.position.y = WALL_H;
     dome.castShadow = true; dome.receiveShadow = true;
     scene.add(dome);
 
     // Uyk — 16 wooden roof spokes
+    const spokeWoodTex = woodTexture('#8B5e2C', '#533212');
+    spokeWoodTex.repeat.set(1, 4);
+    const spokeWoodMat = new THREE.MeshStandardMaterial({
+      map: spokeWoodTex,
+      roughness: 0.8,
+      metalness: 0.05
+    });
+
     for (let i = 0; i < 16; i++) {
       const ang  = (i / 16) * Math.PI * 2;
       const sx   = Math.cos(ang) * YURT_R * 0.97;
@@ -83,7 +139,7 @@ export class Yurt {
 
       const spoke = new THREE.Mesh(
         new THREE.CylinderGeometry(0.018, 0.03, len, 5),
-        lmat(0x8B5e2C)
+        spokeWoodMat
       );
       spoke.position.set((sx + ex) / 2, WALL_H + DOME_H / 2, (sz + ez) / 2);
       const dir = new THREE.Vector3(dx, DOME_H, dz).normalize();
@@ -93,10 +149,17 @@ export class Yurt {
   }
 
   private addShanyrak(scene: THREE.Scene) {
+    const shanyrakWoodTex = woodTexture('#5a2e0a', '#341a04');
+    const shanyrakWoodMat = new THREE.MeshStandardMaterial({
+      map: shanyrakWoodTex,
+      roughness: 0.85,
+      metalness: 0.05
+    });
+
     // Outer ring
     const ring = new THREE.Mesh(
       new THREE.TorusGeometry(SHANYRAK_R, 0.09, 10, 40),
-      lmat(0x5a2e0a)
+      shanyrakWoodMat
     );
     ring.rotation.x = Math.PI / 2;
     ring.position.y = WALL_H + DOME_H;
@@ -106,7 +169,7 @@ export class Yurt {
     [0, Math.PI / 2].forEach(angle => {
       const cross = new THREE.Mesh(
         new THREE.CylinderGeometry(0.022, 0.022, SHANYRAK_R * 2, 5),
-        lmat(0x5a2e0a)
+        shanyrakWoodMat
       );
       cross.rotation.z = Math.PI / 2;
       cross.rotation.y = angle;
@@ -119,22 +182,41 @@ export class Yurt {
     const dz   = YURT_R - 0.08;
     const DW   = 1.05;
     const DH   = 1.75;
-    const wood = lmat(0x7a4820);
+
+    const doorWoodTex = woodTexture('#7a4820', '#4a2608');
+    const doorWoodMat = new THREE.MeshStandardMaterial({
+      map: doorWoodTex,
+      roughness: 0.8,
+      metalness: 0.1
+    });
 
     // Posts
     [-DW / 2 - 0.04, DW / 2 + 0.04].forEach(px => {
-      const post = new THREE.Mesh(new THREE.BoxGeometry(0.08, DH, 0.09), wood);
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.08, DH, 0.09), doorWoodMat);
       post.position.set(px, DH / 2, dz);
       scene.add(post);
     });
 
     // Lintel
-    const lintel = new THREE.Mesh(new THREE.BoxGeometry(DW + 0.22, 0.09, 0.09), wood);
+    const lintel = new THREE.Mesh(new THREE.BoxGeometry(DW + 0.22, 0.09, 0.09), doorWoodMat);
     lintel.position.set(0, DH, dz);
     scene.add(lintel);
 
-    // Felt curtains (parted)
-    const curtainMat = lmat(0x982830, { side: THREE.DoubleSide });
+    // Felt curtains with bump map
+    const curtainFeltTex = feltTexture('#982830', '#63151b');
+    curtainFeltTex.repeat.set(2, 4);
+    const curtainBumpTex = noiseBumpTexture();
+    curtainBumpTex.repeat.set(4, 8);
+
+    const curtainMat = new THREE.MeshStandardMaterial({
+      map: curtainFeltTex,
+      bumpMap: curtainBumpTex,
+      bumpScale: 0.012,
+      roughness: 0.95,
+      metalness: 0.0,
+      side: THREE.DoubleSide
+    });
+
     [[-0.25, -0.12], [0.25, 0.12]].forEach(([cx, ry]) => {
       const c = new THREE.Mesh(new THREE.PlaneGeometry(DW * 0.55, DH - 0.08), curtainMat);
       c.position.set(cx, DH / 2 - 0.04, dz - 0.01);
