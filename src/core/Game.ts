@@ -30,7 +30,7 @@ export class Game {
     this.scene.fog = new THREE.FogExp2(0xc5dff0, 0.004);
 
     this.camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.05, 400);
-    this.camera.position.set(0.4, 0.28, 1.6);
+    this.camera.position.set(0.4, 0.43, 1.6);
     this.camera.rotation.order = 'YXZ';
 
     this.renderer = new THREE.WebGLRenderer({

@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { bus } from '../core/EventBus';
 
-const EYE_H = 1.65;
+const EYE_H = 1.65 + 0.15;       // Raised to match yurt floor level (0.15)
+const WAKE_START_H = 0.28 + 0.15; // Waking up head height above floor
 const MOVE_SPEED = 0.048;
 const WAKE_DURATION = 3.8;
 const YURT_R = 5.2;
@@ -84,7 +85,7 @@ export class FirstPersonControls {
       this.wakeTimer += dt;
       const p    = Math.min(this.wakeTimer / WAKE_DURATION, 1.0);
       const ease = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
-      (this.camera as THREE.PerspectiveCamera).position.y = 0.28 + (EYE_H - 0.28) * ease;
+      (this.camera as THREE.PerspectiveCamera).position.y = WAKE_START_H + (EYE_H - WAKE_START_H) * ease;
       if (p < 0.6) this.pitch = -0.3 * (1 - p / 0.6);
       if (p >= 1.0) {
         this.awake = true;

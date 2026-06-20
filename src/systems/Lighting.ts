@@ -29,13 +29,10 @@ export class Lighting {
     this.shanyraqBeam = new THREE.PointLight(0xfff8f0, 1.8, 11);
     this.shanyraqBeam.position.set(0, 3.6, 0);
     scene.add(this.shanyraqBeam);
-
-    // Fire under kazan — dimmer in daylight
+    // Center fire lamp — dim flickering glow
     this.fireLamp = new THREE.PointLight(0xff5500, 1.2, 4.5);
-    this.fireLamp.position.set(2.2, 0.28, 1.8);
+    this.fireLamp.position.set(0, 0.2, 0);
     scene.add(this.fireLamp);
-
-    // Translucent light beam cone from shanyrak
     const beamGeo = new THREE.CylinderGeometry(0.05, 0.58, 4.9, 16, 1, true);
     const beamMat = new THREE.MeshBasicMaterial({
       color: 0xffffff,

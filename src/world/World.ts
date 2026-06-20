@@ -15,8 +15,8 @@ export class World {
     new Yurt(scene);
     // new Shyrdak(scene);
     // new Furniture(scene);
-    new Weapons(scene);
-    new Instruments(scene);
-    new Kitchen(scene);
+    // new Weapons(scene);
+    // new Instruments(scene);
+    // new Kitchen(scene);
   }
 }

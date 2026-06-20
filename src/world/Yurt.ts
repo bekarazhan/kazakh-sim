@@ -14,8 +14,8 @@ export class Yurt {
         // Scale to fit YURT_R = 5.2 (original model has ~3.54m radius, 5.2 / 3.54 ≈ 1.47)
         model.scale.set(1.47, 1.47, 1.47);
 
-        // Adjust position so the floor sits on the ground
-        model.position.set(0, 0, 0);
+        // Adjust position so the floor sits above the steppe ground (prevent clipping)
+        model.position.set(0, 0.15, 0);
 
         // Configure shadow maps and materials
         model.traverse((child) => {
