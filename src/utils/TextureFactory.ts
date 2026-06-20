@@ -214,3 +214,107 @@ export function metalTexture(baseColorHex: string, scratchColorHex: string): THR
   tex.wrapT = THREE.RepeatWrapping;
   return tex;
 }
+
+export function steppeGroundTexture(): THREE.CanvasTexture {
+  const cvs = document.createElement('canvas');
+  cvs.width = 512; cvs.height = 512;
+  const ctx = cvs.getContext('2d')!;
+
+  // Base yellowish-green dry grass/soil color of the Kazakh steppe
+  ctx.fillStyle = '#6e7a4b';
+  ctx.fillRect(0, 0, 512, 512);
+
+  // Layer 1: Soil patches (brownish/grey)
+  ctx.fillStyle = '#5c543c';
+  for (let i = 0; i < 200; i++) {
+    const x = Math.random() * 512;
+    const y = Math.random() * 512;
+    const r = 20 + Math.random() * 60;
+    ctx.globalAlpha = 0.15;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Layer 2: Dried grass patches (golden-yellowish/straw)
+  ctx.fillStyle = '#bfa15c';
+  for (let i = 0; i < 300; i++) {
+    const x = Math.random() * 512;
+    const y = Math.random() * 512;
+    const r = 15 + Math.random() * 50;
+    ctx.globalAlpha = 0.18;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Layer 3: Lush green patches
+  ctx.fillStyle = '#4c662b';
+  for (let i = 0; i < 200; i++) {
+    const x = Math.random() * 512;
+    const y = Math.random() * 512;
+    const r = 15 + Math.random() * 45;
+    ctx.globalAlpha = 0.12;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Layer 4: Fine noise / dirt details
+  for (let i = 0; i < 25000; i++) {
+    const x = Math.random() * 512;
+    const y = Math.random() * 512;
+    const size = 1 + Math.random() * 1.5;
+    const color = Math.random() > 0.6 ? '#3d3625' : '#e0cc96';
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.08 + Math.random() * 0.1;
+    ctx.fillRect(x, y, size, size);
+  }
+
+  ctx.globalAlpha = 1.0;
+  const tex = new THREE.CanvasTexture(cvs);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(120, 120); // tiled over the large 600x600 plane
+  return tex;
+}
+
+export function grassTuftTexture(): THREE.CanvasTexture {
+  const cvs = document.createElement('canvas');
+  cvs.width = 256; cvs.height = 512;
+  const ctx = cvs.getContext('2d')!;
+
+  // Clear canvas (transparent background)
+  ctx.clearRect(0, 0, 256, 512);
+
+  // Draw 18-25 blades of grass growing from the bottom center (128, 512)
+  const colors = ['#8db554', '#b5a353', '#5d8035', '#7d9e43', '#9c8c3e', '#bfa15c'];
+  
+  for (let i = 0; i < 28; i++) {
+    ctx.strokeStyle = colors[Math.floor(Math.random() * colors.length)];
+    ctx.lineWidth = 3 + Math.random() * 4;
+    ctx.lineCap = 'round';
+
+    // Start point: bottom center with slight offset
+    const sx = 128 + (Math.random() - 0.5) * 60;
+    const sy = 512;
+
+    // End point (tip of blade): curved left or right, height is random
+    const angle = (Math.random() - 0.5) * 0.6; // curvature direction
+    const length = 320 + Math.random() * 170;
+    const ex = sx + Math.sin(angle) * length;
+    const ey = sy - Math.cos(angle) * length;
+
+    // Control point for quadratic curve to make it look bent
+    const cx = sx + Math.sin(angle) * length * 0.5 + (Math.random() - 0.5) * 40;
+    const cy = sy - Math.cos(angle) * length * 0.5;
+
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.quadraticCurveTo(cx, cy, ex, ey);
+    ctx.stroke();
+  }
+
+  const tex = new THREE.CanvasTexture(cvs);
+  return tex;
+}
