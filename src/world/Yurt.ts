@@ -18,7 +18,7 @@ export class Yurt {
         model.position.set(0, 0.15, 0);
 
         // Rotate model so the door aligns with the +Z direction (physical collision door opening)
-        model.rotation.y = -2.8115;
+        model.rotation.y = -2.62;
 
         // Configure shadow maps and materials
         model.traverse((child) => {

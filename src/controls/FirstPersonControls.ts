@@ -7,7 +7,7 @@ const MOVE_SPEED = 0.048;
 const WAKE_DURATION = 3.8;
 const YURT_R = 5.2;
 const WALL_MARGIN = 0.35;        // how close to wall before bouncing
-const DOOR_HALF_WIDTH = 0.58;    // door opening half-width (DW=1.05 / 2 + margin)
+const DOOR_HALF_WIDTH = 0.80;    // widened door opening half-width for smooth pass
 const DOOR_Z = YURT_R - 0.1;    // door is on +Z side
 
 export class FirstPersonControls {
