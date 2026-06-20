@@ -16,18 +16,38 @@ export class AudioManager {
 
   private initialized = false;
   private nextAnimalTime = 0;
+  private isOutsideFn: () => boolean;
 
-  constructor(camera: THREE.Camera, scene: THREE.Scene) {
+  private currentWindVol = 0.08;
+  private currentBirdsVol = 0.03;
+  private currentFireVolMultiplier = 1.0;
+
+  constructor(camera: THREE.Camera, scene: THREE.Scene, isOutsideFn: () => boolean) {
     this.camera = camera;
     this.scene = scene;
+    this.isOutsideFn = isOutsideFn;
 
     this.listener = new THREE.AudioListener();
     camera.add(this.listener);
 
     // Initialize audio on first user interaction (pointer lock request)
     bus.on('lockchange', (locked) => {
-      if (locked && !this.initialized) {
-        this.initAudio();
+      if (locked) {
+        if (!this.initialized) {
+          this.initAudio();
+        } else {
+          const ctx = this.listener.context;
+          if (ctx && ctx.state === 'suspended') {
+            ctx.resume().catch((err) => console.warn('Failed to resume AudioContext:', err));
+          }
+        }
+      } else {
+        if (this.initialized) {
+          const ctx = this.listener.context;
+          if (ctx && ctx.state === 'running') {
+            ctx.suspend().catch((err) => console.warn('Failed to suspend AudioContext:', err));
+          }
+        }
       }
     });
   }
@@ -36,12 +56,17 @@ export class AudioManager {
     this.initialized = true;
     const loader = new THREE.AudioLoader();
 
+    const isOutside = this.isOutsideFn();
+    this.currentWindVol = isOutside ? 0.30 : 0.08;
+    this.currentBirdsVol = isOutside ? 0.22 : 0.03;
+    this.currentFireVolMultiplier = isOutside ? 0.3 : 1.0;
+
     // 1. Wind ambient loop
     this.wind = new THREE.Audio(this.listener);
     loader.load('/audio/wind.mp3', (buffer) => {
       this.wind.setBuffer(buffer);
       this.wind.setLoop(true);
-      this.wind.setVolume(0.25);
+      this.wind.setVolume(this.currentWindVol);
       this.wind.play();
     });
 
@@ -50,7 +75,7 @@ export class AudioManager {
     loader.load('/audio/birds.mp3', (buffer) => {
       this.birds.setBuffer(buffer);
       this.birds.setLoop(true);
-      this.birds.setVolume(0.18);
+      this.birds.setVolume(this.currentBirdsVol);
       this.birds.play();
     });
 
@@ -59,7 +84,7 @@ export class AudioManager {
     loader.load('/audio/fire.mp3', (buffer) => {
       this.fire.setBuffer(buffer);
       this.fire.setLoop(true);
-      this.fire.setVolume(0.7);
+      this.fire.setVolume(0.7 * this.currentFireVolMultiplier);
       this.fire.setRefDistance(1.5);
       this.fire.setMaxDistance(12);
       this.fire.play();
@@ -91,7 +116,11 @@ export class AudioManager {
     // Create positional audio for animal in the distance
     const animalAudio = new THREE.PositionalAudio(this.listener);
     animalAudio.setBuffer(buffer);
-    animalAudio.setVolume(0.6);
+    
+    // Muffle animal sounds if player is inside the yurt
+    const volumeMultiplier = this.isOutsideFn() ? 1.0 : 0.3;
+    animalAudio.setVolume(0.6 * volumeMultiplier);
+    
     animalAudio.setRefDistance(10);
     animalAudio.setMaxDistance(180);
 
@@ -126,4 +155,31 @@ export class AudioManager {
 
     setTimeout(this.tick, 2000);
   };
+
+  update(dt: number) {
+    if (!this.initialized) return;
+
+    const isOutside = this.isOutsideFn();
+    const targetWindVol = isOutside ? 0.30 : 0.08;
+    const targetBirdsVol = isOutside ? 0.22 : 0.03;
+    const targetFireMultiplier = isOutside ? 0.3 : 1.0;
+
+    // Lerp wind volume
+    this.currentWindVol = THREE.MathUtils.lerp(this.currentWindVol, targetWindVol, dt * 2.0);
+    if (this.wind && this.wind.isPlaying) {
+      this.wind.setVolume(this.currentWindVol);
+    }
+
+    // Lerp birds volume
+    this.currentBirdsVol = THREE.MathUtils.lerp(this.currentBirdsVol, targetBirdsVol, dt * 2.0);
+    if (this.birds && this.birds.isPlaying) {
+      this.birds.setVolume(this.currentBirdsVol);
+    }
+
+    // Lerp fire volume
+    this.currentFireVolMultiplier = THREE.MathUtils.lerp(this.currentFireVolMultiplier, targetFireMultiplier, dt * 2.0);
+    if (this.fire && this.fire.isPlaying) {
+      this.fire.setVolume(0.7 * this.currentFireVolMultiplier);
+    }
+  }
 }

@@ -24,6 +24,7 @@ export class Game {
   private lighting: Lighting;
   private overlay: Overlay;
   private composer: EffectComposer;
+  private audioManager: AudioManager;
   private clock = new THREE.Timer();
 
   constructor() {
@@ -73,7 +74,7 @@ export class Game {
     this.overlay  = new Overlay();
 
     // Start audio manager
-    new AudioManager(this.camera, this.scene);
+    this.audioManager = new AudioManager(this.camera, this.scene, () => this.controls.isOutside);
   }
 
   start() {
@@ -88,6 +89,7 @@ export class Game {
     const elapsed = this.clock.getElapsed();
     this.controls.update(dt);
     this.lighting.update(elapsed);
+    this.audioManager.update(dt);
     this.composer.render();
   };
 

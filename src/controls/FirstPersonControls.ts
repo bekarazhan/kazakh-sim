@@ -76,6 +76,7 @@ export class FirstPersonControls {
 
   get isLocked() { return this.locked; }
   get isAwake()  { return this.awake; }
+  get isOutside() { return this.outsideYurt; }
 
   update(dt: number) {
     if (!this.locked) return;
