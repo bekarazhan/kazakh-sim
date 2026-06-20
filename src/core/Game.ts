@@ -12,6 +12,7 @@ import { World } from '../world/World';
 import { FirstPersonControls } from '../controls/FirstPersonControls';
 import { Lighting } from '../systems/Lighting';
 import { Overlay } from '../ui/Overlay';
+import { AudioManager } from '../systems/AudioManager';
 
 export class Game {
   readonly renderer: THREE.WebGLRenderer;
@@ -70,6 +71,9 @@ export class Game {
     this.world    = new World(this.scene, this.renderer);
     this.controls = new FirstPersonControls(this.camera, this.renderer.domElement);
     this.overlay  = new Overlay();
+
+    // Start audio manager
+    new AudioManager(this.camera, this.scene);
   }
 
   start() {
