@@ -220,12 +220,12 @@ export function steppeGroundTexture(): THREE.CanvasTexture {
   cvs.width = 512; cvs.height = 512;
   const ctx = cvs.getContext('2d')!;
 
-  // Base yellowish-green dry grass/soil color of the Kazakh steppe
-  ctx.fillStyle = '#6e7a4b';
+  // Base yellowish-green dry grass/soil color of the Kazakh steppe - MUTED
+  ctx.fillStyle = '#5c643b';
   ctx.fillRect(0, 0, 512, 512);
 
   // Layer 1: Soil patches (brownish/grey)
-  ctx.fillStyle = '#5c543c';
+  ctx.fillStyle = '#4c4432';
   for (let i = 0; i < 200; i++) {
     const x = Math.random() * 512;
     const y = Math.random() * 512;
@@ -237,7 +237,7 @@ export function steppeGroundTexture(): THREE.CanvasTexture {
   }
 
   // Layer 2: Dried grass patches (golden-yellowish/straw)
-  ctx.fillStyle = '#bfa15c';
+  ctx.fillStyle = '#a68c51';
   for (let i = 0; i < 300; i++) {
     const x = Math.random() * 512;
     const y = Math.random() * 512;
@@ -249,7 +249,7 @@ export function steppeGroundTexture(): THREE.CanvasTexture {
   }
 
   // Layer 3: Lush green patches
-  ctx.fillStyle = '#4c662b';
+  ctx.fillStyle = '#3a4d21';
   for (let i = 0; i < 200; i++) {
     const x = Math.random() * 512;
     const y = Math.random() * 512;
@@ -265,7 +265,7 @@ export function steppeGroundTexture(): THREE.CanvasTexture {
     const x = Math.random() * 512;
     const y = Math.random() * 512;
     const size = 1 + Math.random() * 1.5;
-    const color = Math.random() > 0.6 ? '#3d3625' : '#e0cc96';
+    const color = Math.random() > 0.6 ? '#2c2518' : '#c2b388';
     ctx.fillStyle = color;
     ctx.globalAlpha = 0.08 + Math.random() * 0.1;
     ctx.fillRect(x, y, size, size);
@@ -287,8 +287,8 @@ export function grassTuftTexture(): THREE.CanvasTexture {
   // Clear canvas (transparent background)
   ctx.clearRect(0, 0, 256, 512);
 
-  // Draw 18-25 blades of grass growing from the bottom center (128, 512)
-  const colors = ['#8db554', '#b5a353', '#5d8035', '#7d9e43', '#9c8c3e', '#bfa15c'];
+  // Draw 18-25 blades of grass growing from the bottom center (128, 512) - MUTED colors
+  const colors = ['#768551', '#9e8d53', '#4d5c36', '#667843', '#877b47', '#a6955b'];
   
   for (let i = 0; i < 28; i++) {
     ctx.strokeStyle = colors[Math.floor(Math.random() * colors.length)];
@@ -316,5 +316,71 @@ export function grassTuftTexture(): THREE.CanvasTexture {
   }
 
   const tex = new THREE.CanvasTexture(cvs);
+  return tex;
+}
+
+export function hillsBackdropTexture(): THREE.CanvasTexture {
+  const cvs = document.createElement('canvas');
+  cvs.width = 2048; cvs.height = 256;
+  const ctx = cvs.getContext('2d')!;
+
+  // Clear canvas (fully transparent)
+  ctx.clearRect(0, 0, 2048, 256);
+
+  // Draw three layers of rolling hills from back to front
+  // Back layer (farthest, lightest, most faded sky-blue-grey fog)
+  ctx.fillStyle = '#b1c3c7';
+  ctx.beginPath();
+  ctx.moveTo(0, 256);
+  for (let x = 0; x <= 2048; x += 10) {
+    const y = 110 + 
+              Math.sin(x * 0.003) * 20 + 
+              Math.cos(x * 0.007) * 12 + 
+              Math.sin(x * 0.015) * 4;
+    ctx.lineTo(x, y);
+  }
+  ctx.lineTo(2048, 256);
+  ctx.closePath();
+  ctx.fill();
+
+  // Middle layer
+  ctx.fillStyle = '#94adab';
+  ctx.beginPath();
+  ctx.moveTo(0, 256);
+  for (let x = 0; x <= 2048; x += 10) {
+    const y = 140 + 
+              Math.cos(x * 0.004) * 24 + 
+              Math.sin(x * 0.009) * 14 + 
+              Math.cos(x * 0.02) * 5;
+    ctx.lineTo(x, y);
+  }
+  ctx.lineTo(2048, 256);
+  ctx.closePath();
+  ctx.fill();
+
+  // Front layer (closest, matches steppe base horizon fog color)
+  ctx.fillStyle = '#728882';
+  ctx.beginPath();
+  ctx.moveTo(0, 256);
+  for (let x = 0; x <= 2048; x += 10) {
+    const y = 175 + 
+              Math.sin(x * 0.005) * 18 + 
+              Math.cos(x * 0.011) * 8;
+    ctx.lineTo(x, y);
+  }
+  ctx.lineTo(2048, 256);
+  ctx.closePath();
+  ctx.fill();
+
+  // Draw a gradient at the bottom to transition smoothly to the flat steppe ground color
+  const g = ctx.createLinearGradient(0, 160, 0, 256);
+  g.addColorStop(0.0, 'rgba(114, 136, 130, 0.0)');
+  g.addColorStop(1.0, '#5c643b'); // matches steppe ground base color!
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 160, 2048, 96);
+
+  const tex = new THREE.CanvasTexture(cvs);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.ClampToEdgeWrapping;
   return tex;
 }

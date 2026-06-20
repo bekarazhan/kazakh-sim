@@ -6,8 +6,8 @@ export class Lighting {
   private lightBeamMesh: THREE.Mesh;
 
   constructor(scene: THREE.Scene) {
-    // Summer midday sun — bright, slightly warm white
-    const sun = new THREE.DirectionalLight(0xfff5e0, 3.5);
+    // Summer midday sun — bright, slightly warm white (muted intensity 2.2 instead of 3.5)
+    const sun = new THREE.DirectionalLight(0xfff5e0, 2.2);
     sun.position.set(30, 60, -40);
     sun.castShadow = true;
     sun.shadow.mapSize.set(4096, 4096);
@@ -19,11 +19,11 @@ export class Lighting {
     sc.right = sc.top   =  25;
     scene.add(sun);
 
-    // Sky ambient — cool blue diffuse
-    scene.add(new THREE.AmbientLight(0x8ab4d4, 0.7));
+    // Sky ambient — cool blue diffuse (intensity 0.45 instead of 0.7)
+    scene.add(new THREE.AmbientLight(0x8ab4d4, 0.45));
 
-    // Hemisphere: sky above, green earth below
-    scene.add(new THREE.HemisphereLight(0x87ceeb, 0x6a9e30, 0.8));
+    // Hemisphere: sky above, green earth below (intensity 0.5 instead of 0.8, earth color: dark olive)
+    scene.add(new THREE.HemisphereLight(0x87ceeb, 0x5c643b, 0.5));
 
     // Shanyrak — bright daylight shaft
     this.shanyraqBeam = new THREE.PointLight(0xfff8f0, 1.8, 11);

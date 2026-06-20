@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { steppeGroundTexture, grassTuftTexture } from '../utils/TextureFactory';
+import { steppeGroundTexture, grassTuftTexture, hillsBackdropTexture } from '../utils/TextureFactory';
 
 function getSteppeHeight(x: number, z: number): number {
   const d = Math.hypot(x, z);
@@ -44,26 +44,23 @@ export class Steppe {
   }
 
   private addDistantHills(scene: THREE.Scene) {
-    // Low rolling hills on the horizon
-    const hills: [number, number, number, number, number][] = [
-      [-120, -160, 8, 55, 0x4a7a28],
-      [ -60, -180, 6, 45, 0x567a30],
-      [  20, -170, 9, 60, 0x4a7228],
-      [  90, -155, 7, 50, 0x527832],
-      [ 160, -165, 5, 40, 0x4e7830],
-      [-190, -140, 7, 52, 0x4a7228],
-      [ 200, -145, 6, 48, 0x527030],
-    ];
-    hills.forEach(([x, z, h, r, c]) => {
-      const geo = new THREE.SphereGeometry(r, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.35);
-      const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
-        color: c,
-        roughness: 1.0,
-        metalness: 0.0
-      }));
-      m.position.set(x, -r * 0.55 + h * 0.5, z);
-      scene.add(m);
+    // Replace sphere hills with a large panoramic backdrop cylinder representing distant rolling hills
+    const radius = 230;
+    const height = 48;
+
+    const geo = new THREE.CylinderGeometry(radius, radius, height, 48, 1, true);
+    const tex = hillsBackdropTexture();
+    const mat = new THREE.MeshBasicMaterial({
+      map: tex,
+      transparent: true,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      fog: true // allow backdrop to dissolve naturally into sky fog at distance
     });
+
+    const cylinder = new THREE.Mesh(geo, mat);
+    cylinder.position.set(0, height / 2 - 5, 0); // align bottom of cylinder with ground
+    scene.add(cylinder);
   }
 
   private addGrass(scene: THREE.Scene) {
