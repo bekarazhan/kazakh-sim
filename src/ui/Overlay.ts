@@ -14,11 +14,12 @@ export class Overlay {
         <h1>ҚАЗАҚ</h1>
         <h2>СИМУЛЯТОР</h2>
         <div class="hint"><span>· нажмите для начала ·</span></div>
+        <div class="credits">Модель юрты: <a href="https://sketchfab.com/3d-models/3-adb8c343568640aa936fd8c1deee7a6a" target="_blank" rel="noopener noreferrer">zhanerke.badambay</a> (CC BY 4.0)</div>
       </div>
       <div id="vignette"></div>
       <div id="fade"></div>
       <div id="crosshair"></div>
-      <div id="hud">W A S D — движение &nbsp;·&nbsp; C — присесть &nbsp;·&nbsp; X — лечь &nbsp;·&nbsp; мышь — взгляд &nbsp;·&nbsp; ESC — пауза</div>
+      <div id="hud">W A S D — движение &nbsp;·&nbsp; C — присесть &nbsp;·&nbsp; Ctrl — лечь &nbsp;·&nbsp; Пробел — встать &nbsp;·&nbsp; мышь — взгляд &nbsp;·&nbsp; ESC — пауза</div>
     `;
     document.body.insertAdjacentHTML('beforeend', html);
 
@@ -32,6 +33,12 @@ export class Overlay {
     this.overlay.addEventListener('click', () => {
       const canvas = document.querySelector('canvas');
       canvas?.requestPointerLock();
+    });
+
+    // Stop propagation on credits link click to prevent starting pointer lock
+    const link = this.overlay.querySelector('.credits a');
+    link?.addEventListener('click', (e) => {
+      e.stopPropagation();
     });
 
     // 3. Wire events

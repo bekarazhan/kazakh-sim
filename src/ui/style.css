@@ -44,8 +44,16 @@ canvas { display: block; }
 
 #vignette {
   position: fixed; inset: 0;
-  background: radial-gradient(circle at center, transparent 25%, rgba(0, 0, 0, 0.42) 100%);
+  background: radial-gradient(circle at center, rgba(0,0,0,0) 40%, rgba(0,0,0,0.12) 75%, rgba(0,0,0,0.32) 100%);
   pointer-events: none; z-index: 1;
+}
+
+/* Eye-adaptation flash — fired by Game.ts when crossing the yurt doorway */
+#eye-adapt {
+  position: fixed; inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 4;
 }
 
 #fade {
@@ -53,4 +61,18 @@ canvas { display: block; }
   background: rgba(0, 0, 0, 1);
   pointer-events: none; z-index: 5;
   transition: opacity 3s ease;
+}
+
+#overlay .credits {
+  position: absolute; bottom: 24px;
+  font-size: 11px; opacity: 0.38;
+  letter-spacing: 1px;
+  color: #e8c86e;
+}
+#overlay .credits a {
+  color: #e8c86e; text-decoration: underline; pointer-events: auto;
+  transition: opacity 0.2s;
+}
+#overlay .credits a:hover {
+  opacity: 0.8;
 }
