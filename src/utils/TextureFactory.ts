@@ -216,68 +216,88 @@ export function metalTexture(baseColorHex: string, scratchColorHex: string): THR
 }
 
 export function steppeGroundTexture(): THREE.CanvasTexture {
+  const S   = 1024; // larger canvas = more internal detail, fewer visible repetitions
   const cvs = document.createElement('canvas');
-  cvs.width = 512; cvs.height = 512;
+  cvs.width = S; cvs.height = S;
   const ctx = cvs.getContext('2d')!;
 
-  // Base yellowish-green dry grass/soil color of the Kazakh steppe - MUTED
-  ctx.fillStyle = '#5c643b';
-  ctx.fillRect(0, 0, 512, 512);
-
-  // Layer 1: Soil patches (brownish/grey)
-  ctx.fillStyle = '#4c4432';
-  for (let i = 0; i < 200; i++) {
-    const x = Math.random() * 512;
-    const y = Math.random() * 512;
-    const r = 20 + Math.random() * 60;
-    ctx.globalAlpha = 0.15;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  // Layer 2: Dried grass patches (golden-yellowish/straw)
-  ctx.fillStyle = '#a68c51';
-  for (let i = 0; i < 300; i++) {
-    const x = Math.random() * 512;
-    const y = Math.random() * 512;
-    const r = 15 + Math.random() * 50;
-    ctx.globalAlpha = 0.18;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  // Layer 3: Lush green patches
-  ctx.fillStyle = '#3a4d21';
-  for (let i = 0; i < 200; i++) {
-    const x = Math.random() * 512;
-    const y = Math.random() * 512;
-    const r = 15 + Math.random() * 45;
-    ctx.globalAlpha = 0.12;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  // Layer 4: Fine noise / dirt details
-  for (let i = 0; i < 25000; i++) {
-    const x = Math.random() * 512;
-    const y = Math.random() * 512;
-    const size = 1 + Math.random() * 1.5;
-    const color = Math.random() > 0.6 ? '#2c2518' : '#c2b388';
+  /**
+   * Draw a filled ellipse at (x, y) AND at all 8 wrap-around neighbours so
+   * the texture tiles seamlessly — patches that cross an edge are continued
+   * on the opposite side, eliminating the telltale seam line.
+   */
+  const tilePatch = (
+    px: number, py: number, rx: number, ry: number,
+    color: string, alpha: number
+  ) => {
     ctx.fillStyle = color;
-    ctx.globalAlpha = 0.08 + Math.random() * 0.1;
-    ctx.fillRect(x, y, size, size);
+    ctx.globalAlpha = alpha;
+    for (const dx of [-S, 0, S]) {
+      for (const dy of [-S, 0, S]) {
+        ctx.beginPath();
+        ctx.ellipse(px + dx, py + dy, rx, ry, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  };
+
+  // Base — rich green steppe soil
+  ctx.fillStyle = '#4a5f33';
+  ctx.fillRect(0, 0, S, S);
+
+  // Layer 1: Soil / bare earth patches (dark brown)
+  for (let i = 0; i < 280; i++) {
+    const x = Math.random() * S;
+    const y = Math.random() * S;
+    const r = 25 + Math.random() * 70;
+    tilePatch(x, y, r, r * 0.75, '#4c4432', 0.14);
+  }
+
+  // Layer 2: Drier yellow-green patches
+  for (let i = 0; i < 400; i++) {
+    const x = Math.random() * S;
+    const y = Math.random() * S;
+    const r = 18 + Math.random() * 60;
+    tilePatch(x, y, r, r * 0.80, '#8a9a52', 0.13);
+  }
+
+  // Layer 3: Lush darker green patches
+  for (let i = 0; i < 280; i++) {
+    const x = Math.random() * S;
+    const y = Math.random() * S;
+    const r = 18 + Math.random() * 55;
+    tilePatch(x, y, r, r * 0.70, '#2d5a1b', 0.18);
+  }
+
+  // Layer 4: Fine pixel noise (dirt / micro-variation)
+  // Painted in 4 quadrants tiled so the noise itself is seamless
+  ctx.globalAlpha = 1.0;
+  for (let i = 0; i < 60000; i++) {
+    const x    = Math.random() * S;
+    const y    = Math.random() * S;
+    const size = 1 + Math.random() * 1.8;
+    ctx.fillStyle = Math.random() > 0.55 ? '#2c2518' : '#b8aa7a';
+    ctx.globalAlpha = 0.06 + Math.random() * 0.09;
+    // Tile the pixel too so noise doesn't add a visible edge
+    ctx.fillRect(x,         y,         size, size);
+    ctx.fillRect(x - S,     y,         size, size);
+    ctx.fillRect(x,         y - S,     size, size);
+    ctx.fillRect(x - S,     y - S,     size, size);
   }
 
   ctx.globalAlpha = 1.0;
   const tex = new THREE.CanvasTexture(cvs);
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(120, 120); // tiled over the large 600x600 plane
+  tex.wrapS    = THREE.RepeatWrapping;
+  tex.wrapT    = THREE.RepeatWrapping;
+  tex.repeat.set(55, 55);           // fewer tiles on 900m plane (was 120 on 512px canvas)
+  tex.generateMipmaps = true;
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  tex.anisotropy = 16;              // keeps texture sharp at oblique ground angles
+  tex.needsUpdate = true;
   return tex;
 }
+
 
 export function grassTuftTexture(): THREE.CanvasTexture {
   const cvs = document.createElement('canvas');
@@ -287,8 +307,8 @@ export function grassTuftTexture(): THREE.CanvasTexture {
   // Clear canvas (transparent background)
   ctx.clearRect(0, 0, 256, 512);
 
-  // Draw 18-25 blades of grass growing from the bottom center (128, 512) - MUTED colors
-  const colors = ['#768551', '#9e8d53', '#4d5c36', '#667843', '#877b47', '#a6955b'];
+  // Draw 18-25 blades of grass growing from the bottom center (128, 512) - VIVID greens
+  const colors = ['#5a8232', '#7aaa3e', '#4d7228', '#6b9e38', '#3d6121', '#8dc44e'];
   
   for (let i = 0; i < 28; i++) {
     ctx.strokeStyle = colors[Math.floor(Math.random() * colors.length)];

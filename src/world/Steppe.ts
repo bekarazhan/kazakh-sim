@@ -29,10 +29,10 @@ export class Steppe {
     const numTufts = 1500;
     const grassTex = grassTuftTexture();
 
-    // 1. Olive-green (standard steppe color)
+    // 1. Rich meadow-green (standard steppe color)
     const grassMat1 = new THREE.MeshStandardMaterial({
       map: grassTex,
-      color: 0xa4b870,
+      color: 0x6aaa38,
       alphaTest: 0.5,
       transparent: true,
       side: THREE.DoubleSide,
@@ -40,10 +40,10 @@ export class Steppe {
       metalness: 0.0
     });
 
-    // 2. Dry yellow-straw (burnt steppe color)
+    // 2. Lighter yellow-green (sunlit steppe grass)
     const grassMat2 = new THREE.MeshStandardMaterial({
       map: grassTex,
-      color: 0xc4b27a,
+      color: 0x8dc44a,
       alphaTest: 0.5,
       transparent: true,
       side: THREE.DoubleSide,
@@ -51,10 +51,10 @@ export class Steppe {
       metalness: 0.0
     });
 
-    // 3. Darker forest green (young/sheltered grass color)
+    // 3. Deep forest green (dense/sheltered grass)
     const grassMat3 = new THREE.MeshStandardMaterial({
       map: grassTex,
-      color: 0x829c4e,
+      color: 0x4d7a26,
       alphaTest: 0.5,
       transparent: true,
       side: THREE.DoubleSide,
@@ -66,15 +66,16 @@ export class Steppe {
     grassGeo.translate(0, 0.35, 0); // Pivot at bottom
 
     // Create 3 separate instanced meshes to render three different color variations
+    // Capacity of 600 per type ensures no overflow with random distribution of 1500 total
     const instMeshes1 = [
-      new THREE.InstancedMesh(grassGeo, grassMat1, 500),
-      new THREE.InstancedMesh(grassGeo, grassMat2, 500),
-      new THREE.InstancedMesh(grassGeo, grassMat3, 500)
+      new THREE.InstancedMesh(grassGeo, grassMat1, 600),
+      new THREE.InstancedMesh(grassGeo, grassMat2, 600),
+      new THREE.InstancedMesh(grassGeo, grassMat3, 600)
     ];
     const instMeshes2 = [
-      new THREE.InstancedMesh(grassGeo, grassMat1, 500),
-      new THREE.InstancedMesh(grassGeo, grassMat2, 500),
-      new THREE.InstancedMesh(grassGeo, grassMat3, 500)
+      new THREE.InstancedMesh(grassGeo, grassMat1, 600),
+      new THREE.InstancedMesh(grassGeo, grassMat2, 600),
+      new THREE.InstancedMesh(grassGeo, grassMat3, 600)
     ];
     
     instMeshes1.forEach(m => { m.castShadow = true; m.receiveShadow = true; });
@@ -90,7 +91,7 @@ export class Steppe {
       counts[matIdx]++;
 
       const ang = Math.random() * Math.PI * 2;
-      const d   = 6.2 + Math.random() * 95; // scatter up to 100m
+      const d   = 9.0 + Math.random() * 92; // keep well clear of yurt wall (YURT_R=5.2m + margin), scatter up to ~100m
       const x = Math.cos(ang) * d;
       const z = Math.sin(ang) * d;
       const y = 0.01; // tiny offset above ground to prevent z-fighting
@@ -110,6 +111,11 @@ export class Steppe {
       dummy.updateMatrix();
       instMeshes2[matIdx].setMatrixAt(instIdx, dummy.matrix);
     }
+
+    // CRITICAL: set draw count to actual filled count so unfilled
+    // default-matrix slots (which sit at origin = inside the yurt) are never rendered
+    instMeshes1.forEach((m, i) => { m.count = counts[i]; m.instanceMatrix.needsUpdate = true; });
+    instMeshes2.forEach((m, i) => { m.count = counts[i]; m.instanceMatrix.needsUpdate = true; });
 
     instMeshes1.forEach(m => scene.add(m));
     instMeshes2.forEach(m => scene.add(m));
