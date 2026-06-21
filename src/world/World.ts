@@ -9,10 +9,10 @@ import { Instruments } from './items/Instruments';
 import { Kitchen }     from './items/Kitchen';
 
 export class World {
-  constructor(scene: THREE.Scene, renderer: THREE.WebGLRenderer) {
+  constructor(scene: THREE.Scene, renderer: THREE.WebGLRenderer, onCollidables: (meshes: THREE.Mesh[]) => void) {
     new Sky(scene, renderer);
     new Steppe(scene);
-    new Yurt(scene);
+    new Yurt(scene, onCollidables);
     // new Shyrdak(scene);
     // new Furniture(scene);
     // new Weapons(scene);

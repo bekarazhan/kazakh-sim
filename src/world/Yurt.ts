@@ -4,7 +4,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 export const YURT_R = 5.2;
 
 export class Yurt {
-  constructor(scene: THREE.Scene) {
+  constructor(scene: THREE.Scene, onCollidables?: (meshes: THREE.Mesh[]) => void) {
     const loader = new GLTFLoader();
     loader.load(
       '/models/yurt.glb',
@@ -43,6 +43,19 @@ export class Yurt {
         });
 
         scene.add(model);
+
+        // Force update world matrix of the model so child meshes have correct world-space matrices
+        model.updateMatrixWorld(true);
+
+        // Collect all meshes for interior collision raycasting
+        if (onCollidables) {
+          const meshes: THREE.Mesh[] = [];
+          model.traverse(child => {
+            if ((child as THREE.Mesh).isMesh) meshes.push(child as THREE.Mesh);
+          });
+          onCollidables(meshes);
+        }
+
         console.log('Yurt GLTF model loaded successfully!');
       },
       undefined,
