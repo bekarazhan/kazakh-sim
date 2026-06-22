@@ -112,7 +112,7 @@ export class Game {
     const dt      = Math.min(this.clock.getDelta(), 0.05);
     const elapsed = this.clock.getElapsed();
     this.controls.update(dt);
-    this.world.update(elapsed);
+    this.world.update(elapsed, this.camera.position);
     this.lighting.update(elapsed);
     this.audioManager.update(dt);
 

@@ -3,14 +3,18 @@ import { steppeGroundTexture, grassTuftTexture } from '../utils/TextureFactory';
 
 export class Steppe {
   private timeUniform = { value: 0 };
+  private playerPosUniform = { value: new THREE.Vector3() };
 
   constructor(scene: THREE.Scene) {
     this.addGround(scene);
     this.addGrass(scene);
   }
 
-  update(t: number) {
+  update(t: number, playerPos?: THREE.Vector3) {
     this.timeUniform.value = t;
+    if (playerPos) {
+      this.playerPosUniform.value.copy(playerPos);
+    }
   }
 
   private addGround(scene: THREE.Scene) {
@@ -32,7 +36,7 @@ export class Steppe {
   }
 
   private addGrass(scene: THREE.Scene) {
-    const numTufts = 8000;
+    const numTufts = 12000;
     const grassTex = grassTuftTexture();
 
     // Simplex 2D noise implementation in GLSL to drive organic wind waves and color variations
@@ -64,16 +68,17 @@ export class Steppe {
     }
     `;
 
-    // ── Wind & Color Shader Modifier ─────────────────────────────────────
-    // Injects uTime uniform, sways vertices based on height and noise, and applies base-to-tip PBR color wave gradient
+    // ── Wind, Color & Scrolling Shader Modifier ────────────────────────────
     const setupShader = (shader: any) => {
       shader.uniforms.uTime = this.timeUniform;
+      shader.uniforms.uPlayerPos = this.playerPosUniform;
       
       shader.vertexShader = shader.vertexShader.replace(
         '#include <common>',
         `
         #include <common>
         uniform float uTime;
+        uniform vec3 uPlayerPos;
         varying float vGrassHeightFactor;
         varying vec3 vWorldPosition;
         ${simplexNoiseGLSL}
@@ -85,22 +90,31 @@ export class Steppe {
         `
         #include <begin_vertex>
         
-        // Calculate grass height factor (0.0 at base to 1.0 at tip)
-        vGrassHeightFactor = position.y / 0.70;
-        
         // Calculate world position of the instance (pivot point is at local origin)
         vec3 instanceWorldPos = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
-        vWorldPosition = instanceWorldPos;
+        
+        // Wrap instance coordinates around player position in a 100x100m grid footprint
+        vec3 wrappedInstancePos = instanceWorldPos;
+        wrappedInstancePos.x = mod(instanceWorldPos.x - uPlayerPos.x + 50.0, 100.0) + uPlayerPos.x - 50.0;
+        wrappedInstancePos.z = mod(instanceWorldPos.z - uPlayerPos.z + 50.0, 100.0) + uPlayerPos.z - 50.0;
+        
+        // Calculate distance from wrapped instance to player
+        float distToPlayer = distance(wrappedInstancePos.xz, uPlayerPos.xz);
+        
+        // Fade out grass scale near the grid boundary (from 1.0 at <=40m to 0.0 at >=48m)
+        float fade = smoothstep(48.0, 40.0, distToPlayer);
+        
+        // Calculate grass height factor (0.0 at base to 1.0 at tip)
+        vGrassHeightFactor = position.y / 0.42;
         
         // Constant wind direction vector (from North-West to South-East)
         vec2 windDir = normalize(vec2(1.0, 0.6));
         
         // Wind speed and dual-layered Simplex Noise Wind
         float windSpeed = 1.3;
-        // Scroll noise coordinate along the wind direction to make the wind waves travel in the wind direction
         vec2 scroll = windDir * uTime * windSpeed;
-        vec2 windCoords1 = instanceWorldPos.xz * 0.02 - scroll;
-        vec2 windCoords2 = instanceWorldPos.xz * 0.08 - scroll * 1.5;
+        vec2 windCoords1 = wrappedInstancePos.xz * 0.02 - scroll;
+        vec2 windCoords2 = wrappedInstancePos.xz * 0.08 - scroll * 1.5;
         
         // Combine low-frequency gusts and high-frequency turbulence
         float noise1 = snoise(windCoords1);
@@ -113,28 +127,71 @@ export class Steppe {
         // Height factor: base stays anchored (0.0), tip sways most (1.0)
         float bend = vGrassHeightFactor * vGrassHeightFactor;
         
-        // Displace vertex in the wind direction
-        transformed.x += windDir.x * windForce * bend;
-        transformed.z += windDir.y * windForce * bend;
+        // Displace vertex in the wind direction (scaled down to 0.40 for shorter lawn geometry)
+        transformed.x += windDir.x * windForce * 0.40 * bend;
+        transformed.z += windDir.y * windForce * 0.40 * bend;
         
-        // Add lateral turbulence (perpendicular to wind) for organic variety
+        // Add lateral turbulence (perpendicular to wind) for organic variety (scaled down to 0.04)
         vec2 windRight = vec2(-windDir.y, windDir.x);
-        float lateralSway = noise2 * 0.07 * bend;
+        float lateralSway = noise2 * 0.04 * bend;
         transformed.x += windRight.x * lateralSway;
         transformed.z += windRight.y * lateralSway;
         
         // Bend downwards slightly to preserve blade length under strong wind
-        transformed.y -= (windForce * windForce + lateralSway * lateralSway) * 0.22 * bend;
+        transformed.y -= (windForce * windForce + lateralSway * lateralSway) * 0.15 * bend;
+        
+        // Scale grass geometry to 0 near the edges to prevent popping
+        transformed.xyz *= fade;
         `
       );
 
+      shader.vertexShader = shader.vertexShader.replace(
+        '#include <worldpos_vertex>',
+        `
+        #if defined( USE_INSTANCING ) && ! defined( FORCE_SINGLE_INSTANCE )
+          vec4 worldPosition = instanceMatrix * vec4( transformed, 1.0 );
+        #else
+          vec4 worldPosition = vec4( transformed, 1.0 );
+        #endif
+        worldPosition = modelMatrix * worldPosition;
+        
+        // Wrap worldPosition around the player position
+        vec3 instanceWorldPos = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+        vec3 wrappedInstancePos = instanceWorldPos;
+        wrappedInstancePos.x = mod(instanceWorldPos.x - uPlayerPos.x + 50.0, 100.0) + uPlayerPos.x - 50.0;
+        wrappedInstancePos.z = mod(instanceWorldPos.z - uPlayerPos.z + 50.0, 100.0) + uPlayerPos.z - 50.0;
+        
+        vec3 wrapOffset = wrappedInstancePos - instanceWorldPos;
+        worldPosition.xyz += wrapOffset;
+        
+        vWorldPosition = worldPosition.xyz;
+        `
+      );
+
+      shader.vertexShader = shader.vertexShader.replace(
+        '#include <project_vertex>',
+        `
+        vec4 mvPosition = viewMatrix * worldPosition;
+        gl_Position = projectionMatrix * mvPosition;
+        `
+      );
+
+      // Replace #include <common> in fragment shader to declare vWorldPosition
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <common>',
+        `
+        #include <common>
+        varying vec3 vWorldPosition;
+        `
+      );
+
+      // If map_fragment is present, also declare other varyings and simplex noise
       if (shader.fragmentShader.indexOf('#include <map_fragment>') !== -1) {
         shader.fragmentShader = shader.fragmentShader.replace(
-          '#include <common>',
+          'varying vec3 vWorldPosition;',
           `
-          #include <common>
-          varying float vGrassHeightFactor;
           varying vec3 vWorldPosition;
+          varying float vGrassHeightFactor;
           ${simplexNoiseGLSL}
           `
         );
@@ -161,6 +218,21 @@ export class Steppe {
           `
         );
       }
+
+      // Discard fragments inside the yurt walls and door path for both color and shadow maps
+      shader.fragmentShader = shader.fragmentShader.replace(
+        'void main() {',
+        `
+        void main() {
+          // Yurt interior and door path GPU discard
+          float ang = atan(vWorldPosition.z, vWorldPosition.x);
+          float wallBoundary = 5.40 + sin(ang * 7.0) * 0.35 + cos(ang * 12.0) * 0.15;
+          bool pathExclusion = (vWorldPosition.x > -1.2 && vWorldPosition.x < 1.2 && vWorldPosition.z > 4.8 && vWorldPosition.z < 9.5);
+          if (length(vWorldPosition.xz) < wallBoundary || pathExclusion) {
+            discard;
+          }
+        `
+      );
     };
 
     // 1. Rich meadow-green (standard steppe color)
@@ -174,7 +246,7 @@ export class Steppe {
       metalness: 0.0
     });
     grassMat1.onBeforeCompile = setupShader;
-    grassMat1.customProgramCacheKey = () => 'wind-grass-std';
+    grassMat1.customProgramCacheKey = () => 'wind-grass-std-v2';
 
     // 2. Lighter yellow-green (sunlit steppe grass)
     const grassMat2 = new THREE.MeshStandardMaterial({
@@ -187,7 +259,7 @@ export class Steppe {
       metalness: 0.0
     });
     grassMat2.onBeforeCompile = setupShader;
-    grassMat2.customProgramCacheKey = () => 'wind-grass-std';
+    grassMat2.customProgramCacheKey = () => 'wind-grass-std-v2';
 
     // 3. Deep forest green (dense/sheltered grass)
     const grassMat3 = new THREE.MeshStandardMaterial({
@@ -200,7 +272,7 @@ export class Steppe {
       metalness: 0.0
     });
     grassMat3.onBeforeCompile = setupShader;
-    grassMat3.customProgramCacheKey = () => 'wind-grass-std';
+    grassMat3.customProgramCacheKey = () => 'wind-grass-std-v2';
 
     // Custom depth material to make shadows sway in sync with the grass mesh
     const depthMat = new THREE.MeshDepthMaterial({
@@ -209,11 +281,11 @@ export class Steppe {
       map: grassTex
     });
     depthMat.onBeforeCompile = setupShader;
-    depthMat.customProgramCacheKey = () => 'wind-grass-depth';
+    depthMat.customProgramCacheKey = () => 'wind-grass-depth-v2';
 
-    // Geometry segmented 1x4 vertically so it bends smoothly in a curve
-    const grassGeo = new THREE.PlaneGeometry(0.5, 0.7, 1, 4);
-    grassGeo.translate(0, 0.35, 0); // Pivot at bottom
+    // Geometry segmented 1x4 vertically so it bends smoothly - shortened to 0.4x0.42 for lawn carpet look
+    const grassGeo = new THREE.PlaneGeometry(0.4, 0.42, 1, 4);
+    grassGeo.translate(0, 0.21, 0); // Pivot at bottom
 
     // Calculate dynamic capacity to handle random distribution of instances per material with a safety buffer
     const capacity = Math.ceil(numTufts / 3) + 300;
@@ -249,26 +321,9 @@ export class Steppe {
       const instIdx = counts[matIdx];
       counts[matIdx]++;
 
-      let x = 0, z = 0, d = 0;
-      let valid = false;
-      
-      while (!valid) {
-        const ang = Math.random() * Math.PI * 2;
-        d = 5.0 + Math.random() * 95.0; // start close to the yurt wall
-        x = Math.cos(ang) * d;
-        z = Math.sin(ang) * d;
-
-        // Path exclusion zone for entrance door path (+Z direction: x inside [-1.2, 1.2], z inside [4.8, 9.5])
-        const pathExclusion = (x > -1.2 && x < 1.2 && z > 4.8 && z < 9.5);
-        
-        // Add multi-frequency noise to wall boundary (varying around 5.4m) to make it organic and non-circular
-        const wallBoundary = 5.40 + Math.sin(ang * 7) * 0.35 + Math.cos(ang * 12) * 0.15;
-        
-        if (d >= wallBoundary && !pathExclusion) {
-          valid = true;
-        }
-      }
-
+      // Distribute instances uniformly in a 100x100m grid footprint [-50, 50]
+      const x = (Math.random() - 0.5) * 100;
+      const z = (Math.random() - 0.5) * 100;
       const y = 0.01; // tiny offset above ground to prevent z-fighting
       const rot = Math.random() * Math.PI;
       

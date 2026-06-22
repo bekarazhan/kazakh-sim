@@ -22,7 +22,7 @@ export class World {
     // new Kitchen(scene);
   }
 
-  update(t: number) {
-    this.steppe.update(t);
+  update(t: number, playerPos: THREE.Vector3) {
+    this.steppe.update(t, playerPos);
   }
 }
