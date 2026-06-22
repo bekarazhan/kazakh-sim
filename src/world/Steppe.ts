@@ -32,7 +32,7 @@ export class Steppe {
   }
 
   private addGrass(scene: THREE.Scene) {
-    const numTufts = 1500;
+    const numTufts = 8000;
     const grassTex = grassTuftTexture();
 
     // Simplex 2D noise implementation in GLSL to drive organic wind waves and color variations
@@ -92,21 +92,39 @@ export class Steppe {
         vec3 instanceWorldPos = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
         vWorldPosition = instanceWorldPos;
         
+        // Constant wind direction vector (from North-West to South-East)
+        vec2 windDir = normalize(vec2(1.0, 0.6));
+        
         // Wind speed and dual-layered Simplex Noise Wind
-        float windSpeed = 1.6;
-        vec2 windCoords1 = instanceWorldPos.xz * 0.03 + vec2(uTime * windSpeed, uTime * windSpeed * 0.5);
-        vec2 windCoords2 = instanceWorldPos.xz * 0.12 - vec2(uTime * windSpeed * 0.7, uTime * windSpeed * 0.9);
-        float windNoise = snoise(windCoords1) * 0.75 + snoise(windCoords2) * 0.25;
+        float windSpeed = 1.3;
+        // Scroll noise coordinate along the wind direction to make the wind waves travel in the wind direction
+        vec2 scroll = windDir * uTime * windSpeed;
+        vec2 windCoords1 = instanceWorldPos.xz * 0.02 - scroll;
+        vec2 windCoords2 = instanceWorldPos.xz * 0.08 - scroll * 1.5;
+        
+        // Combine low-frequency gusts and high-frequency turbulence
+        float noise1 = snoise(windCoords1);
+        float noise2 = snoise(windCoords2);
+        float windNoise = noise1 * 0.72 + noise2 * 0.28;
+        
+        // Map noise to a positive wind force [0.18, 0.48] to keep the grass bent under wind
+        float windForce = 0.18 + (windNoise * 0.5 + 0.5) * 0.30;
         
         // Height factor: base stays anchored (0.0), tip sways most (1.0)
         float bend = vGrassHeightFactor * vGrassHeightFactor;
         
-        // Displace vertex along X and Z axes based on wind strength and direction
-        transformed.x += windNoise * 0.26 * bend;
-        transformed.z += windNoise * 0.16 * bend;
+        // Displace vertex in the wind direction
+        transformed.x += windDir.x * windForce * bend;
+        transformed.z += windDir.y * windForce * bend;
+        
+        // Add lateral turbulence (perpendicular to wind) for organic variety
+        vec2 windRight = vec2(-windDir.y, windDir.x);
+        float lateralSway = noise2 * 0.07 * bend;
+        transformed.x += windRight.x * lateralSway;
+        transformed.z += windRight.y * lateralSway;
         
         // Bend downwards slightly to preserve blade length under strong wind
-        transformed.y -= (windNoise * windNoise) * 0.06 * bend;
+        transformed.y -= (windForce * windForce + lateralSway * lateralSway) * 0.22 * bend;
         `
       );
 
@@ -197,16 +215,19 @@ export class Steppe {
     const grassGeo = new THREE.PlaneGeometry(0.5, 0.7, 1, 4);
     grassGeo.translate(0, 0.35, 0); // Pivot at bottom
 
+    // Calculate dynamic capacity to handle random distribution of instances per material with a safety buffer
+    const capacity = Math.ceil(numTufts / 3) + 300;
+
     // Create 3 separate instanced meshes to render three different color variations
     const instMeshes1 = [
-      new THREE.InstancedMesh(grassGeo, grassMat1, 600),
-      new THREE.InstancedMesh(grassGeo, grassMat2, 600),
-      new THREE.InstancedMesh(grassGeo, grassMat3, 600)
+      new THREE.InstancedMesh(grassGeo, grassMat1, capacity),
+      new THREE.InstancedMesh(grassGeo, grassMat2, capacity),
+      new THREE.InstancedMesh(grassGeo, grassMat3, capacity)
     ];
     const instMeshes2 = [
-      new THREE.InstancedMesh(grassGeo, grassMat1, 600),
-      new THREE.InstancedMesh(grassGeo, grassMat2, 600),
-      new THREE.InstancedMesh(grassGeo, grassMat3, 600)
+      new THREE.InstancedMesh(grassGeo, grassMat1, capacity),
+      new THREE.InstancedMesh(grassGeo, grassMat2, capacity),
+      new THREE.InstancedMesh(grassGeo, grassMat3, capacity)
     ];
     
     instMeshes1.forEach(m => {
