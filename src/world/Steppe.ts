@@ -249,12 +249,27 @@ export class Steppe {
       const instIdx = counts[matIdx];
       counts[matIdx]++;
 
-      const ang = Math.random() * Math.PI * 2;
-      const d   = 9.0 + Math.random() * 92; // keep well clear of yurt wall (YURT_R=5.2m + margin)
-      const x = Math.cos(ang) * d;
-      const z = Math.sin(ang) * d;
-      const y = 0.01; // tiny offset above ground to prevent z-fighting
+      let x = 0, z = 0, d = 0;
+      let valid = false;
+      
+      while (!valid) {
+        const ang = Math.random() * Math.PI * 2;
+        d = 5.0 + Math.random() * 95.0; // start close to the yurt wall
+        x = Math.cos(ang) * d;
+        z = Math.sin(ang) * d;
 
+        // Path exclusion zone for entrance door path (+Z direction: x inside [-1.2, 1.2], z inside [4.8, 9.5])
+        const pathExclusion = (x > -1.2 && x < 1.2 && z > 4.8 && z < 9.5);
+        
+        // Add multi-frequency noise to wall boundary (varying around 5.4m) to make it organic and non-circular
+        const wallBoundary = 5.40 + Math.sin(ang * 7) * 0.35 + Math.cos(ang * 12) * 0.15;
+        
+        if (d >= wallBoundary && !pathExclusion) {
+          valid = true;
+        }
+      }
+
+      const y = 0.01; // tiny offset above ground to prevent z-fighting
       const rot = Math.random() * Math.PI;
       const scale = 0.65 + Math.random() * 0.6; // organic sizing variation
 
