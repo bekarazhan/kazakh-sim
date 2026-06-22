@@ -2,9 +2,15 @@ import * as THREE from 'three';
 import { steppeGroundTexture, grassTuftTexture } from '../utils/TextureFactory';
 
 export class Steppe {
+  private timeUniform = { value: 0 };
+
   constructor(scene: THREE.Scene) {
     this.addGround(scene);
     this.addGrass(scene);
+  }
+
+  update(t: number) {
+    this.timeUniform.value = t;
   }
 
   private addGround(scene: THREE.Scene) {
@@ -29,6 +35,116 @@ export class Steppe {
     const numTufts = 1500;
     const grassTex = grassTuftTexture();
 
+    // Simplex 2D noise implementation in GLSL to drive organic wind waves and color variations
+    const simplexNoiseGLSL = `
+    vec3 permute(vec3 x) { return mod(((x*34.0)+1.0)*x, 289.0); }
+    float snoise(vec2 v){
+      const vec4 C = vec4(0.211324865405187, 0.366025403784439,
+               -0.577350269189626, 0.024390243902439);
+      vec2 i  = floor(v + dot(v, C.yy) );
+      vec2 x0 = v -   i + dot(i, C.xx);
+      vec2 i1;
+      i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+      vec4 x12 = x0.xyxy + C.xxzz;
+      x12.xy -= i1;
+      i = mod(i, 289.0);
+      vec3 p = permute( permute( i.y + vec3(0.0, i1.y, 1.0) )
+      + i.x + vec3(0.0, i1.x, 1.0) );
+      vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy),
+        dot(x12.zw,x12.zw)), 0.0);
+      m = m*m ;
+      m = m*m ;
+      vec3 x = 2.0 * fract(p * C.www) - 1.0;
+      vec3 h = abs(x) - 0.5;
+      vec3 a0 = x - floor(x + 0.5);
+      vec3 g = a0 * vec3(x0.x, x12.xz) + h * vec3(x0.y, x12.yw);
+      vec3 Recip = 1.79284291400159 - 0.85373472095314 * ( a0*a0 + h*h );
+      m *= Recip;
+      return 130.0 * dot(m, g);
+    }
+    `;
+
+    // ── Wind & Color Shader Modifier ─────────────────────────────────────
+    // Injects uTime uniform, sways vertices based on height and noise, and applies base-to-tip PBR color wave gradient
+    const setupShader = (shader: any) => {
+      shader.uniforms.uTime = this.timeUniform;
+      
+      shader.vertexShader = shader.vertexShader.replace(
+        '#include <common>',
+        `
+        #include <common>
+        uniform float uTime;
+        varying float vGrassHeightFactor;
+        varying vec3 vWorldPosition;
+        ${simplexNoiseGLSL}
+        `
+      );
+
+      shader.vertexShader = shader.vertexShader.replace(
+        '#include <begin_vertex>',
+        `
+        #include <begin_vertex>
+        
+        // Calculate grass height factor (0.0 at base to 1.0 at tip)
+        vGrassHeightFactor = position.y / 0.70;
+        
+        // Calculate world position of the instance (pivot point is at local origin)
+        vec3 instanceWorldPos = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+        vWorldPosition = instanceWorldPos;
+        
+        // Wind speed and dual-layered Simplex Noise Wind
+        float windSpeed = 1.6;
+        vec2 windCoords1 = instanceWorldPos.xz * 0.03 + vec2(uTime * windSpeed, uTime * windSpeed * 0.5);
+        vec2 windCoords2 = instanceWorldPos.xz * 0.12 - vec2(uTime * windSpeed * 0.7, uTime * windSpeed * 0.9);
+        float windNoise = snoise(windCoords1) * 0.75 + snoise(windCoords2) * 0.25;
+        
+        // Height factor: base stays anchored (0.0), tip sways most (1.0)
+        float bend = vGrassHeightFactor * vGrassHeightFactor;
+        
+        // Displace vertex along X and Z axes based on wind strength and direction
+        transformed.x += windNoise * 0.26 * bend;
+        transformed.z += windNoise * 0.16 * bend;
+        
+        // Bend downwards slightly to preserve blade length under strong wind
+        transformed.y -= (windNoise * windNoise) * 0.06 * bend;
+        `
+      );
+
+      if (shader.fragmentShader.indexOf('#include <map_fragment>') !== -1) {
+        shader.fragmentShader = shader.fragmentShader.replace(
+          '#include <common>',
+          `
+          #include <common>
+          varying float vGrassHeightFactor;
+          varying vec3 vWorldPosition;
+          ${simplexNoiseGLSL}
+          `
+        );
+
+        shader.fragmentShader = shader.fragmentShader.replace(
+          '#include <map_fragment>',
+          `
+          #include <map_fragment>
+          
+          // Color variation across the steppe using low-frequency simplex noise
+          float colorNoise = snoise(vWorldPosition.xz * 0.015);
+          
+          // Warm/cool color shifting for grass tips (waves of light yellow-green and deep forest green)
+          vec3 shiftedTip = mix(diffuseColor.rgb * 0.82, diffuseColor.rgb * 1.14 + vec3(0.08, 0.06, 0.0), colorNoise * 0.5 + 0.5);
+          
+          // Deep root color for fake ambient occlusion (AO)
+          vec3 rootColor = shiftedTip * 0.12;
+          
+          // Blend root to tip color based on height
+          vec3 grassBaseColor = mix(rootColor, shiftedTip, vGrassHeightFactor);
+          
+          // Apply color gradient to diffuseColor (preserves texture details/shadow lines)
+          diffuseColor.rgb = grassBaseColor;
+          `
+        );
+      }
+    };
+
     // 1. Rich meadow-green (standard steppe color)
     const grassMat1 = new THREE.MeshStandardMaterial({
       map: grassTex,
@@ -39,6 +155,8 @@ export class Steppe {
       roughness: 1.0,
       metalness: 0.0
     });
+    grassMat1.onBeforeCompile = setupShader;
+    grassMat1.customProgramCacheKey = () => 'wind-grass-std';
 
     // 2. Lighter yellow-green (sunlit steppe grass)
     const grassMat2 = new THREE.MeshStandardMaterial({
@@ -50,6 +168,8 @@ export class Steppe {
       roughness: 1.0,
       metalness: 0.0
     });
+    grassMat2.onBeforeCompile = setupShader;
+    grassMat2.customProgramCacheKey = () => 'wind-grass-std';
 
     // 3. Deep forest green (dense/sheltered grass)
     const grassMat3 = new THREE.MeshStandardMaterial({
@@ -61,12 +181,23 @@ export class Steppe {
       roughness: 1.0,
       metalness: 0.0
     });
+    grassMat3.onBeforeCompile = setupShader;
+    grassMat3.customProgramCacheKey = () => 'wind-grass-std';
 
-    const grassGeo = new THREE.PlaneGeometry(0.5, 0.7);
+    // Custom depth material to make shadows sway in sync with the grass mesh
+    const depthMat = new THREE.MeshDepthMaterial({
+      depthPacking: THREE.RGBADepthPacking,
+      alphaTest: 0.5,
+      map: grassTex
+    });
+    depthMat.onBeforeCompile = setupShader;
+    depthMat.customProgramCacheKey = () => 'wind-grass-depth';
+
+    // Geometry segmented 1x4 vertically so it bends smoothly in a curve
+    const grassGeo = new THREE.PlaneGeometry(0.5, 0.7, 1, 4);
     grassGeo.translate(0, 0.35, 0); // Pivot at bottom
 
     // Create 3 separate instanced meshes to render three different color variations
-    // Capacity of 600 per type ensures no overflow with random distribution of 1500 total
     const instMeshes1 = [
       new THREE.InstancedMesh(grassGeo, grassMat1, 600),
       new THREE.InstancedMesh(grassGeo, grassMat2, 600),
@@ -78,26 +209,33 @@ export class Steppe {
       new THREE.InstancedMesh(grassGeo, grassMat3, 600)
     ];
     
-    instMeshes1.forEach(m => { m.castShadow = true; m.receiveShadow = true; });
-    instMeshes2.forEach(m => { m.castShadow = true; m.receiveShadow = true; });
+    instMeshes1.forEach(m => {
+      m.castShadow = true;
+      m.receiveShadow = true;
+      m.customDepthMaterial = depthMat;
+    });
+    instMeshes2.forEach(m => {
+      m.castShadow = true;
+      m.receiveShadow = true;
+      m.customDepthMaterial = depthMat;
+    });
 
     const dummy = new THREE.Object3D();
     const counts = [0, 0, 0];
 
     for (let i = 0; i < numTufts; i++) {
-      // Pick random material variation (0: olive, 1: straw, 2: green)
       const matIdx = Math.floor(Math.random() * 3);
       const instIdx = counts[matIdx];
       counts[matIdx]++;
 
       const ang = Math.random() * Math.PI * 2;
-      const d   = 9.0 + Math.random() * 92; // keep well clear of yurt wall (YURT_R=5.2m + margin), scatter up to ~100m
+      const d   = 9.0 + Math.random() * 92; // keep well clear of yurt wall (YURT_R=5.2m + margin)
       const x = Math.cos(ang) * d;
       const z = Math.sin(ang) * d;
       const y = 0.01; // tiny offset above ground to prevent z-fighting
 
       const rot = Math.random() * Math.PI;
-      const scale = 0.65 + Math.random() * 0.6; // organic sizing variation (65% to 125%)
+      const scale = 0.65 + Math.random() * 0.6; // organic sizing variation
 
       // Plane 1
       dummy.position.set(x, y, z);
@@ -112,8 +250,7 @@ export class Steppe {
       instMeshes2[matIdx].setMatrixAt(instIdx, dummy.matrix);
     }
 
-    // CRITICAL: set draw count to actual filled count so unfilled
-    // default-matrix slots (which sit at origin = inside the yurt) are never rendered
+    // Set actual active count to avoid rendering uninitialized instances at origin
     instMeshes1.forEach((m, i) => { m.count = counts[i]; m.instanceMatrix.needsUpdate = true; });
     instMeshes2.forEach((m, i) => { m.count = counts[i]; m.instanceMatrix.needsUpdate = true; });
 
