@@ -91,7 +91,11 @@ export class Steppe {
         #include <begin_vertex>
         
         // Calculate world position of the instance (pivot point is at local origin)
-        vec3 instanceWorldPos = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+        #ifdef USE_INSTANCING
+          vec3 instanceWorldPos = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+        #else
+          vec3 instanceWorldPos = (modelMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+        #endif
         
         // Wrap instance coordinates around player position in a 100x100m grid footprint
         vec3 wrappedInstancePos = instanceWorldPos;
@@ -148,6 +152,13 @@ export class Steppe {
       shader.vertexShader = shader.vertexShader.replace(
         '#include <worldpos_vertex>',
         `
+        // worldPosition is already declared and wrapped in project_vertex
+        `
+      );
+
+      shader.vertexShader = shader.vertexShader.replace(
+        '#include <project_vertex>',
+        `
         #if defined( USE_INSTANCING ) && ! defined( FORCE_SINGLE_INSTANCE )
           vec4 worldPosition = instanceMatrix * vec4( transformed, 1.0 );
         #else
@@ -156,21 +167,20 @@ export class Steppe {
         worldPosition = modelMatrix * worldPosition;
         
         // Wrap worldPosition around the player position
-        vec3 instanceWorldPos = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
-        vec3 wrappedInstancePos = instanceWorldPos;
-        wrappedInstancePos.x = mod(instanceWorldPos.x - uPlayerPos.x + 50.0, 100.0) + uPlayerPos.x - 50.0;
-        wrappedInstancePos.z = mod(instanceWorldPos.z - uPlayerPos.z + 50.0, 100.0) + uPlayerPos.z - 50.0;
+        #ifdef USE_INSTANCING
+          vec3 instanceWorldPos_pv = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+        #else
+          vec3 instanceWorldPos_pv = (modelMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+        #endif
+        vec3 wrappedInstancePos_pv = instanceWorldPos_pv;
+        wrappedInstancePos_pv.x = mod(instanceWorldPos_pv.x - uPlayerPos.x + 50.0, 100.0) + uPlayerPos.x - 50.0;
+        wrappedInstancePos_pv.z = mod(instanceWorldPos_pv.z - uPlayerPos.z + 50.0, 100.0) + uPlayerPos.z - 50.0;
         
-        vec3 wrapOffset = wrappedInstancePos - instanceWorldPos;
-        worldPosition.xyz += wrapOffset;
+        vec3 wrapOffset_pv = wrappedInstancePos_pv - instanceWorldPos_pv;
+        worldPosition.xyz += wrapOffset_pv;
         
         vWorldPosition = worldPosition.xyz;
-        `
-      );
 
-      shader.vertexShader = shader.vertexShader.replace(
-        '#include <project_vertex>',
-        `
         vec4 mvPosition = viewMatrix * worldPosition;
         gl_Position = projectionMatrix * mvPosition;
         `
