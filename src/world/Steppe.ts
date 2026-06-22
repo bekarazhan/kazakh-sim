@@ -271,7 +271,10 @@ export class Steppe {
 
       const y = 0.01; // tiny offset above ground to prevent z-fighting
       const rot = Math.random() * Math.PI;
-      const scale = 0.65 + Math.random() * 0.6; // organic sizing variation
+      
+      // Non-linear scale distribution: wide range from 0.35 to 1.55.
+      // Skewed using power of 1.8 so there are many small/medium sprouts and a few tall prominent clusters.
+      const scale = 0.35 + Math.pow(Math.random(), 1.8) * 1.2;
 
       // Plane 1
       dummy.position.set(x, y, z);
